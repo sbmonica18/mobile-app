@@ -192,6 +192,18 @@ Repository: [https://github.com/sbmonica18/mobile-app](https://github.com/sbmoni
 
 ---
 
+## Deploy (open without terminals)
+
+To use UrbanLens **without** starting backend + Expo every time, see:
+
+**[docs/DEPLOY.md](docs/DEPLOY.md)** — free/hobby path:
+
+1. **Render** — host Spring Boot API  
+2. **Expo EAS** — install Android APK on your phone  
+3. Optional **Vercel** — web demo  
+
+---
+
 ## License / academic use
 
 Built as an academic / final-year project for demonstrating **location intelligence**, mobile UX, and a full-stack architecture (Expo + Spring Boot).

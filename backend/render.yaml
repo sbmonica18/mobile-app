@@ -1,0 +1,16 @@
+# Free-tier friendly deploy config for Render.com
+# Dashboard: New → Blueprint → connect this GitHub repo
+services:
+  - type: web
+    name: urbanlens-api
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /api/health
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: prod
+      - key: JWT_SECRET
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
