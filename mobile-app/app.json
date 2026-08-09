@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "UrbanLens",
+    "slug": "urbanlens",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "urbanlens",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A2A6E"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.urbanlens.app",
+      "config": {
+        "googleMapsApiKey": ""
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0A2A6E",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.urbanlens.app",
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "config": {
+        "googleMaps": {
+          "apiKey": ""
+        }
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-system-ui",
+      "expo-secure-store",
+      "expo-splash-screen",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Allow UrbanLens to use your location for weather and trip planning."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

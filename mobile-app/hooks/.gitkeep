@@ -1,0 +1,2 @@
+/** Shared hooks — implemented as features are added. */
+export {};

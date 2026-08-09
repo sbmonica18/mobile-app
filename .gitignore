@@ -7,6 +7,8 @@ node_modules/
 .expo/
 dist/
 web-build/
+mobile-app/.tmp-export-check/
+mobile-app/.tools/
 *.jks
 *.p8
 *.p12
