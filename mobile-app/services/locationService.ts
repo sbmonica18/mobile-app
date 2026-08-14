@@ -71,7 +71,10 @@ export function describeLocationError(error: unknown): string {
   return 'Location is required. Turn on GPS and allow UrbanLens to use it.';
 }
 
-function getBrowserCoords(timeoutMs: number): Promise<{ latitude: number; longitude: number }> {
+function getBrowserCoords(
+  timeoutMs: number,
+  options: { enableHighAccuracy: boolean; maximumAge: number },
+): Promise<{ latitude: number; longitude: number }> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
       reject(new Error('This browser cannot read GPS. Open UrbanLens on your phone or use Chrome/Safari.'));
@@ -85,9 +88,9 @@ function getBrowserCoords(timeoutMs: number): Promise<{ latitude: number; longit
         }),
       (err) => reject(err),
       {
-        enableHighAccuracy: true,
+        enableHighAccuracy: options.enableHighAccuracy,
         timeout: timeoutMs,
-        maximumAge: 0,
+        maximumAge: options.maximumAge,
       },
     );
   });
@@ -135,7 +138,11 @@ export async function requestLocationPermission() {
 
 async function getFreshCoords(): Promise<{ latitude: number; longitude: number }> {
   if (Platform.OS === 'web') {
-    return getBrowserCoords(20000);
+    try {
+      return await getBrowserCoords(7000, { enableHighAccuracy: false, maximumAge: 60_000 });
+    } catch {
+      return getBrowserCoords(12000, { enableHighAccuracy: true, maximumAge: 0 });
+    }
   }
 
   const granted = await requestLocationPermission();
@@ -143,35 +150,31 @@ async function getFreshCoords(): Promise<{ latitude: number; longitude: number }
     throw new Error('Location permission is required. Allow UrbanLens to use your location to continue.');
   }
 
+  try {
+    const last = await Location.getLastKnownPositionAsync();
+    if (last?.coords && Date.now() - last.timestamp < 120_000) {
+      return { latitude: last.coords.latitude, longitude: last.coords.longitude };
+    }
+  } catch {
+    // read a fresh position
+  }
+
   const position = await withTimeout(
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
-    20000,
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+    12000,
     'GPS timed out. Turn on Location and try again.',
   );
   return { latitude: position.coords.latitude, longitude: position.coords.longitude };
 }
 
-/** Live GPS only — never Navalur / never a previous visitor or stale cache. */
+/** Live GPS only. Returns as soon as coordinates exist — place name is filled in the background. */
 export async function requireLiveUserLocation(): Promise<UserLocation> {
   const coords = await getFreshCoords();
-  let label = 'Current location';
-  let address = 'Current location';
-  try {
-    const reverse = await withTimeout(
-      reverseGeocode(coords.latitude, coords.longitude),
-      6000,
-      'Geocode timed out',
-    );
-    label = reverse.placeName;
-    address = reverse.address;
-  } catch {
-    // Keep coords even if the place name API is slow.
-  }
   const location: UserLocation = {
     latitude: coords.latitude,
     longitude: coords.longitude,
-    label,
-    address,
+    label: 'Current location',
+    address: 'Current location',
   };
   await writeCachedUserLocation(location);
   return location;

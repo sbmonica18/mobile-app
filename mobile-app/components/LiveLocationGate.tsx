@@ -1,6 +1,8 @@
 import { CLOUD } from '@/constants/cloudTheme';
 import {
   describeLocationError,
+  fetchWeather,
+  refineUserLocationLabel,
   requireLiveUserLocation,
 } from '@/services/locationService';
 import { useDashboardStore } from '@/store/dashboardStore';
@@ -10,13 +12,16 @@ import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 /**
- * Blocks the app until this device returns a live GPS fix.
- * Never uses Navalur or another session's cached place.
+ * Blocks the app until this device returns live coordinates.
+ * Weather and the place name load in parallel as soon as GPS returns.
  */
 export function LiveLocationGate({ children }: { children: React.ReactNode }) {
   const colors = useThemeStore((s) => s.colors);
   const hasLiveFix = useDashboardStore((s) => s.hasLiveFix);
   const setLiveSource = useDashboardStore((s) => s.setLiveSource);
+  const setSource = useDashboardStore((s) => s.setSource);
+  const setWeather = useDashboardStore((s) => s.setWeather);
+  const setWeatherLoading = useDashboardStore((s) => s.setWeatherLoading);
   const [busy, setBusy] = useState(!hasLiveFix);
   const [error, setError] = useState<string | null>(null);
 
@@ -26,12 +31,18 @@ export function LiveLocationGate({ children }: { children: React.ReactNode }) {
     try {
       const location = await requireLiveUserLocation();
       setLiveSource(location);
+      setWeatherLoading(true);
+      void fetchWeather(location.latitude, location.longitude)
+        .then(setWeather)
+        .catch(() => undefined)
+        .finally(() => setWeatherLoading(false));
+      void refineUserLocationLabel(location).then(setSource);
     } catch (e) {
       setError(describeLocationError(e));
     } finally {
       setBusy(false);
     }
-  }, [setLiveSource]);
+  }, [setLiveSource, setSource, setWeather, setWeatherLoading]);
 
   useEffect(() => {
     if (!hasLiveFix) {

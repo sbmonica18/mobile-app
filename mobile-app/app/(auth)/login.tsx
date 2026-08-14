@@ -7,7 +7,7 @@ import {
   LightInput,
 } from '@/components/AuthTheme';
 import { getErrorMessage } from '@/services/api';
-import { describeLocationError, requireLiveUserLocation } from '@/services/locationService';
+import { describeLocationError, fetchWeather, refineUserLocationLabel, requireLiveUserLocation } from '@/services/locationService';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,6 +30,19 @@ export default function LoginScreen() {
   const register = useAuthStore((s) => s.register);
   const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
   const setLiveSource = useDashboardStore((s) => s.setLiveSource);
+  const setSource = useDashboardStore((s) => s.setSource);
+  const setWeather = useDashboardStore((s) => s.setWeather);
+  const setWeatherLoading = useDashboardStore((s) => s.setWeatherLoading);
+
+  const lockInLocation = (location: Awaited<ReturnType<typeof requireLiveUserLocation>>) => {
+    setLiveSource(location);
+    setWeatherLoading(true);
+    void fetchWeather(location.latitude, location.longitude)
+      .then(setWeather)
+      .catch(() => undefined)
+      .finally(() => setWeatherLoading(false));
+    void refineUserLocationLabel(location).then(setSource);
+  };
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [fullName, setFullName] = useState('');
@@ -59,7 +72,7 @@ export default function LoginScreen() {
         await register(fullName.trim(), email.trim(), password);
       }
       try {
-        setLiveSource(await locationPromise);
+        lockInLocation(await locationPromise);
       } catch {
         // LiveLocationGate will require GPS before Home opens.
       }
@@ -78,7 +91,7 @@ export default function LoginScreen() {
       const locationPromise = requireLiveUserLocation();
       await continueAsGuest();
       try {
-        setLiveSource(await locationPromise);
+        lockInLocation(await locationPromise);
       } catch {
         // LiveLocationGate will require GPS before Home opens.
       }

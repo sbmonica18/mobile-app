@@ -11,6 +11,7 @@ import { SearchDestination } from '@/components/SearchDestination';
 import { CLOUD, layoutPad } from '@/constants/cloudTheme';
 import {
   fetchWeather,
+  refineUserLocationLabel,
   requireLiveUserLocation,
 } from '@/services/locationService';
 import { useAiFlowStore } from '@/store/aiFlowStore';
@@ -30,6 +31,7 @@ export default function HomeScreen() {
     recent,
     locationLoading,
     setLiveSource,
+    setSource,
     setWeather,
     setLocationLoading,
     setWeatherLoading,
@@ -44,28 +46,51 @@ export default function HomeScreen() {
   const { width } = useWindowDimensions();
   const pad = layoutPad(width);
 
-  const bootstrap = useCallback(async () => {
+  const bootstrap = useCallback(async (force = false) => {
     setLocationError(null);
+    const live = useDashboardStore.getState();
+
+    if (!force && live.hasLiveFix && live.source) {
+      setLocationLoading(false);
+      if (live.weather) {
+        setWeatherLoading(false);
+        void refineUserLocationLabel(live.source).then(setSource);
+        return;
+      }
+      if (live.weatherLoading) return;
+      setWeatherLoading(true);
+      try {
+        const next = await fetchWeather(live.source.latitude, live.source.longitude);
+        setWeather(next);
+      } catch {
+        // keep the strip in a loading/empty state; pull-to-refresh retries
+      } finally {
+        setWeatherLoading(false);
+      }
+      void refineUserLocationLabel(live.source).then(setSource);
+      return;
+    }
+
     setWeatherLoading(true);
     setLocationLoading(true);
-
     try {
       const location = await requireLiveUserLocation();
       setLiveSource(location);
       setLocationLoading(false);
-      void fetchWeather(location.latitude, location.longitude)
-        .then(setWeather)
-        .catch(() => undefined)
-        .finally(() => setWeatherLoading(false));
+      void refineUserLocationLabel(location).then(setSource);
+      const next = await fetchWeather(location.latitude, location.longitude);
+      setWeather(next);
     } catch (error) {
-      setWeatherLoading(false);
       setLocationError(error instanceof Error ? error.message : 'Location unavailable');
       setLocationLoading(false);
+    } finally {
+      setWeatherLoading(false);
     }
   }, [
     setLocationError,
     setLocationLoading,
     setLiveSource,
+    setSource,
     setWeather,
     setWeatherLoading,
   ]);
@@ -103,7 +128,7 @@ export default function HomeScreen() {
               refreshing={refreshing || locationLoading}
               onRefresh={async () => {
                 setRefreshing(true);
-                await Promise.all([bootstrap(), loadLists()]);
+                await Promise.all([bootstrap(true), loadLists()]);
                 setPulseToken((t) => t + 1);
                 setRefreshing(false);
               }}
@@ -121,7 +146,7 @@ export default function HomeScreen() {
           <View style={styles.weatherLayer}>
             <LiveIntelligenceBar
               refreshToken={pulseToken}
-              onRefreshWeather={() => void bootstrap()}
+              onRefreshWeather={() => void bootstrap(true)}
             />
           </View>
 
