@@ -21,6 +21,7 @@ type DashboardState = {
   locationLoading: boolean;
   weatherLoading: boolean;
   locationError: string | null;
+  hasLiveFix: boolean;
   preferences: Record<string, number>;
   activeRoutes: DrivingRoute[];
   selectedRouteId: string | null;
@@ -30,6 +31,8 @@ type DashboardState = {
   setLocationLoading: (value: boolean) => void;
   setWeatherLoading: (value: boolean) => void;
   setLocationError: (value: string | null) => void;
+  setLiveSource: (source: UserLocation) => void;
+  clearLocation: () => void;
   loadLists: () => Promise<void>;
   loadPreferences: () => Promise<void>;
   recordSearch: (place: PlaceResult) => Promise<void>;
@@ -60,11 +63,21 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
   locationLoading: false,
   weatherLoading: false,
   locationError: null,
+  hasLiveFix: false,
   preferences: {},
   activeRoutes: [],
   selectedRouteId: null,
 
   setSource: (source) => set({ source }),
+  setLiveSource: (source) => set({ source, hasLiveFix: true, locationError: null, locationLoading: false }),
+  clearLocation: () =>
+    set({
+      source: null,
+      weather: null,
+      hasLiveFix: false,
+      locationError: null,
+      locationLoading: false,
+    }),
   setDestination: (destination) => set({ destination }),
   setWeather: (weather) => set({ weather }),
   setLocationLoading: (locationLoading) => set({ locationLoading }),

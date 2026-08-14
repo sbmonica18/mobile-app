@@ -7,7 +7,9 @@ import {
   LightInput,
 } from '@/components/AuthTheme';
 import { getErrorMessage } from '@/services/api';
+import { describeLocationError, requireLiveUserLocation } from '@/services/locationService';
 import { useAuthStore } from '@/store/authStore';
+import { useDashboardStore } from '@/store/dashboardStore';
 import { Ionicons } from '@expo/vector-icons';
 import { router, Href } from 'expo-router';
 import { useState } from 'react';
@@ -27,6 +29,7 @@ export default function LoginScreen() {
   const login = useAuthStore((s) => s.login);
   const register = useAuthStore((s) => s.register);
   const continueAsGuest = useAuthStore((s) => s.continueAsGuest);
+  const setLiveSource = useDashboardStore((s) => s.setLiveSource);
 
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [fullName, setFullName] = useState('');
@@ -49,10 +52,16 @@ export default function LoginScreen() {
 
     setLoading(true);
     try {
+      const locationPromise = requireLiveUserLocation();
       if (mode === 'login') {
         await login(email.trim(), password);
       } else {
         await register(fullName.trim(), email.trim(), password);
+      }
+      try {
+        setLiveSource(await locationPromise);
+      } catch {
+        // LiveLocationGate will require GPS before Home opens.
       }
       router.replace('/(app)/' as Href);
     } catch (e) {
@@ -64,9 +73,18 @@ export default function LoginScreen() {
 
   const onGuest = async () => {
     setGuestLoading(true);
+    setError('');
     try {
+      const locationPromise = requireLiveUserLocation();
       await continueAsGuest();
+      try {
+        setLiveSource(await locationPromise);
+      } catch {
+        // LiveLocationGate will require GPS before Home opens.
+      }
       router.replace('/(app)/' as Href);
+    } catch (e) {
+      setError(describeLocationError(e) || 'Could not start guest mode');
     } finally {
       setGuestLoading(false);
     }

@@ -11,9 +11,7 @@ import { SearchDestination } from '@/components/SearchDestination';
 import { CLOUD, layoutPad } from '@/constants/cloudTheme';
 import {
   fetchWeather,
-  getCurrentUserLocation,
-  readCachedUserLocation,
-  refineUserLocationLabel,
+  requireLiveUserLocation,
 } from '@/services/locationService';
 import { useAiFlowStore } from '@/store/aiFlowStore';
 import { useAuthStore } from '@/store/authStore';
@@ -31,7 +29,7 @@ export default function HomeScreen() {
     source,
     recent,
     locationLoading,
-    setSource,
+    setLiveSource,
     setWeather,
     setLocationLoading,
     setWeatherLoading,
@@ -49,40 +47,25 @@ export default function HomeScreen() {
   const bootstrap = useCallback(async () => {
     setLocationError(null);
     setWeatherLoading(true);
-
-    const cached = await readCachedUserLocation();
-    if (cached) {
-      setSource(cached);
-      setLocationLoading(false);
-    } else {
-      setLocationLoading(true);
-    }
+    setLocationLoading(true);
 
     try {
-      const location = await getCurrentUserLocation();
-      setSource(location);
+      const location = await requireLiveUserLocation();
+      setLiveSource(location);
       setLocationLoading(false);
-      void refineUserLocationLabel(location).then(setSource);
       void fetchWeather(location.latitude, location.longitude)
         .then(setWeather)
         .catch(() => undefined)
         .finally(() => setWeatherLoading(false));
     } catch (error) {
-      if (cached) {
-        void fetchWeather(cached.latitude, cached.longitude)
-          .then(setWeather)
-          .catch(() => undefined)
-          .finally(() => setWeatherLoading(false));
-      } else {
-        setWeatherLoading(false);
-      }
+      setWeatherLoading(false);
       setLocationError(error instanceof Error ? error.message : 'Location unavailable');
       setLocationLoading(false);
     }
   }, [
     setLocationError,
     setLocationLoading,
-    setSource,
+    setLiveSource,
     setWeather,
     setWeatherLoading,
   ]);

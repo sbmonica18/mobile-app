@@ -1,7 +1,8 @@
+import { LiveLocationGate } from '@/components/LiveLocationGate';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 import { Redirect, Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { useThemeStore } from '@/store/themeStore';
 
 export default function AppLayout() {
   const isHydrated = useAuthStore((s) => s.isHydrated);
@@ -21,27 +22,29 @@ export default function AppLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: colors.bg },
-        animation: 'slide_from_right',
-      }}
-    >
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(ai-flow)" />
-      <Stack.Screen name="search-results" options={{ animation: 'fade' }} />
-      <Stack.Screen name="destination-dashboard" />
-      <Stack.Screen
-        name="journey-companion"
-        options={{ animation: 'fade', gestureEnabled: false }}
-      />
-      <Stack.Screen
-        name="journey-story"
-        options={{ animation: 'fade', gestureEnabled: false }}
-      />
-      <Stack.Screen name="travel-vault" options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen name="urbanlens-now" options={{ animation: 'slide_from_right' }} />
-    </Stack>
+    <LiveLocationGate>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: colors.bg },
+          animation: 'slide_from_right',
+        }}
+      >
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(ai-flow)" />
+        <Stack.Screen name="search-results" options={{ animation: 'fade' }} />
+        <Stack.Screen name="destination-dashboard" />
+        <Stack.Screen
+          name="journey-companion"
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen
+          name="journey-story"
+          options={{ animation: 'fade', gestureEnabled: false }}
+        />
+        <Stack.Screen name="travel-vault" options={{ animation: 'slide_from_right' }} />
+        <Stack.Screen name="urbanlens-now" options={{ animation: 'slide_from_right' }} />
+      </Stack>
+    </LiveLocationGate>
   );
 }

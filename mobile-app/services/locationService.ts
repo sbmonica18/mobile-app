@@ -5,13 +5,6 @@ import { Platform } from 'react-native';
 
 const LOCATION_CACHE_KEY = 'urbanlens.lastLocation.v1';
 
-const FALLBACK_LOCATION: UserLocation = {
-  latitude: 12.8465,
-  longitude: 80.2263,
-  label: 'Navalur',
-  address: 'Navalur, Chennai',
-};
-
 function withTimeout<T>(promise: Promise<T>, ms: number, label = 'Timed out'): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(label)), ms);
@@ -55,10 +48,33 @@ async function writeCachedUserLocation(location: UserLocation) {
   }
 }
 
+export async function clearCachedUserLocation() {
+  try {
+    await AsyncStorage.removeItem(LOCATION_CACHE_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function describeLocationError(error: unknown): string {
+  const code = typeof error === 'object' && error && 'code' in error ? Number((error as { code: number }).code) : NaN;
+  if (code === 1) {
+    return 'Allow location for UrbanLens in the browser or phone settings, then try again.';
+  }
+  if (code === 2) {
+    return 'GPS is unavailable. Turn on Location / GPS and try again.';
+  }
+  if (code === 3) {
+    return 'Location timed out. Move to an open area and try again.';
+  }
+  if (error instanceof Error && error.message) return error.message;
+  return 'Location is required. Turn on GPS and allow UrbanLens to use it.';
+}
+
 function getBrowserCoords(timeoutMs: number): Promise<{ latitude: number; longitude: number }> {
   return new Promise((resolve, reject) => {
     if (typeof navigator === 'undefined' || !navigator.geolocation) {
-      reject(new Error('Geolocation unavailable'));
+      reject(new Error('This browser cannot read GPS. Open UrbanLens on your phone or use Chrome/Safari.'));
       return;
     }
     navigator.geolocation.getCurrentPosition(
@@ -69,9 +85,9 @@ function getBrowserCoords(timeoutMs: number): Promise<{ latitude: number; longit
         }),
       (err) => reject(err),
       {
-        enableHighAccuracy: false,
+        enableHighAccuracy: true,
         timeout: timeoutMs,
-        maximumAge: 5 * 60 * 1000,
+        maximumAge: 0,
       },
     );
   });
@@ -117,56 +133,52 @@ export async function requestLocationPermission() {
   return asked.granted;
 }
 
-async function getCoordsFast(): Promise<{ latitude: number; longitude: number }> {
+async function getFreshCoords(): Promise<{ latitude: number; longitude: number }> {
   if (Platform.OS === 'web') {
-    return getBrowserCoords(8000);
+    return getBrowserCoords(20000);
   }
 
   const granted = await requestLocationPermission();
   if (!granted) {
-    throw new Error('Location permission is required to detect weather and your source place.');
-  }
-
-  try {
-    const last = await Location.getLastKnownPositionAsync();
-    if (last?.coords) {
-      return { latitude: last.coords.latitude, longitude: last.coords.longitude };
-    }
-  } catch {
-    // continue to a fresh read
+    throw new Error('Location permission is required. Allow UrbanLens to use your location to continue.');
   }
 
   const position = await withTimeout(
-    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
-    10000,
-    'GPS timed out',
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High }),
+    20000,
+    'GPS timed out. Turn on Location and try again.',
   );
   return { latitude: position.coords.latitude, longitude: position.coords.longitude };
 }
 
-export async function getCurrentUserLocation(): Promise<UserLocation> {
-  const cached = await readCachedUserLocation();
-
-  let latitude: number;
-  let longitude: number;
+/** Live GPS only — never Navalur / never a previous visitor or stale cache. */
+export async function requireLiveUserLocation(): Promise<UserLocation> {
+  const coords = await getFreshCoords();
+  let label = 'Current location';
+  let address = 'Current location';
   try {
-    const coords = await getCoordsFast();
-    latitude = coords.latitude;
-    longitude = coords.longitude;
-  } catch (error) {
-    console.log('Location error:', error);
-    if (cached) return cached;
-    return FALLBACK_LOCATION;
+    const reverse = await withTimeout(
+      reverseGeocode(coords.latitude, coords.longitude),
+      6000,
+      'Geocode timed out',
+    );
+    label = reverse.placeName;
+    address = reverse.address;
+  } catch {
+    // Keep coords even if the place name API is slow.
   }
-
   const location: UserLocation = {
-    latitude,
-    longitude,
-    label: cached?.label || 'Current location',
-    address: cached?.address || 'Current location',
+    latitude: coords.latitude,
+    longitude: coords.longitude,
+    label,
+    address,
   };
-  void writeCachedUserLocation(location);
+  await writeCachedUserLocation(location);
   return location;
+}
+
+export async function getCurrentUserLocation(): Promise<UserLocation> {
+  return requireLiveUserLocation();
 }
 
 /** Resolve suburb/city name after coords are already on screen. */

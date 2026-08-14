@@ -194,6 +194,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       isGuest: false,
       isAuthenticated: false,
     });
+    const { useDashboardStore } = await import('@/store/dashboardStore');
+    const { clearCachedUserLocation } = await import('@/services/locationService');
+    useDashboardStore.getState().clearLocation();
+    await clearCachedUserLocation();
     await reloadAccountLocalData();
   },
 }));
