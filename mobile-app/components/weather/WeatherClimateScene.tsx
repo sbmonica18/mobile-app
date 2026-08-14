@@ -18,6 +18,8 @@ import Animated, {
 type Props = {
   scene: ClimateSceneConfig;
   reduceMotion?: boolean;
+  /** Home-matching light card: pale sky, no dark vignette. */
+  tone?: 'cinematic' | 'cloud';
 };
 
 function DriftCloud({
@@ -27,6 +29,7 @@ function DriftCloud({
   duration,
   opacity,
   reduceMotion,
+  light,
 }: {
   size: number;
   top: number;
@@ -34,6 +37,7 @@ function DriftCloud({
   duration: number;
   opacity: number;
   reduceMotion: boolean;
+  light?: boolean;
 }) {
   const t = useSharedValue(0);
   useEffect(() => {
@@ -68,6 +72,7 @@ function DriftCloud({
           borderRadius: size * 0.2,
           top,
           left: -60,
+          backgroundColor: light ? 'rgba(148,163,184,0.32)' : 'rgba(255,255,255,0.55)',
         },
         style,
       ]}
@@ -434,7 +439,15 @@ function BirdSilhouette({ index, reduceMotion }: { index: number; reduceMotion: 
   );
 }
 
-function SceneLayers({ scene, reduceMotion }: { scene: ClimateSceneConfig; reduceMotion: boolean }) {
+function SceneLayers({
+  scene,
+  reduceMotion,
+  light,
+}: {
+  scene: ClimateSceneConfig;
+  reduceMotion: boolean;
+  light?: boolean;
+}) {
   const { effects } = scene;
   const rainCount = effects.rain === 'heavy' ? 18 : effects.rain === 'light' ? 10 : 0;
   const snowCount = effects.snow ? 14 : 0;
@@ -465,6 +478,7 @@ function SceneLayers({ scene, reduceMotion }: { scene: ClimateSceneConfig; reduc
           duration={22000 + i * 4000}
           opacity={effects.clouds === 'heavy' ? 0.22 : 0.14}
           reduceMotion={reduceMotion}
+          light={light}
         />
       ))}
 
@@ -511,9 +525,13 @@ function SceneLayers({ scene, reduceMotion }: { scene: ClimateSceneConfig; reduc
   );
 }
 
-export const WeatherClimateScene = memo(function WeatherClimateScene({ scene }: Props) {
+export const WeatherClimateScene = memo(function WeatherClimateScene({
+  scene,
+  tone = 'cinematic',
+}: Props) {
   const reduceMotion = !!useReducedMotion();
   const cross = useSharedValue(1);
+  const light = tone === 'cloud';
 
   useEffect(() => {
     cross.value = 0;
@@ -529,34 +547,38 @@ export const WeatherClimateScene = memo(function WeatherClimateScene({ scene }: 
 
   return (
     <Animated.View style={[StyleSheet.absoluteFill, fadeStyle]}>
-      {/* Layer 1 — gradient */}
       <LinearGradient
-        colors={scene.gradient}
+        colors={
+          light
+            ? ['#FFFFFF', '#F7F9FC', '#DBEAFE']
+            : scene.gradient
+        }
         start={{ x: 0.1, y: 0 }}
         end={{ x: 0.9, y: 1 }}
         style={StyleSheet.absoluteFill}
       />
 
-      {/* Ambient lighting wash */}
-      <View
-        pointerEvents="none"
-        style={[
-          styles.ambient,
-          {
-            backgroundColor: scene.ambient,
-            opacity: scene.ambientOpacity,
-          },
-        ]}
-      />
+      {!light ? (
+        <View
+          pointerEvents="none"
+          style={[
+            styles.ambient,
+            {
+              backgroundColor: scene.ambient,
+              opacity: scene.ambientOpacity,
+            },
+          ]}
+        />
+      ) : null}
 
-      {/* Layer 2+3 — particles & light */}
-      <SceneLayers scene={scene} reduceMotion={reduceMotion} />
+      <SceneLayers scene={scene} reduceMotion={reduceMotion} light={light} />
 
-      {/* Soft vignette for depth */}
-      <LinearGradient
-        colors={['transparent', 'rgba(15,23,42,0.18)']}
-        style={styles.vignette}
-      />
+      {!light ? (
+        <LinearGradient
+          colors={['transparent', 'rgba(15,23,42,0.18)']}
+          style={styles.vignette}
+        />
+      ) : null}
     </Animated.View>
   );
 });

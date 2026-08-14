@@ -1,16 +1,17 @@
 import { useAuthStore } from '@/store/authStore';
 import { Redirect, Stack } from 'expo-router';
 import { ActivityIndicator, View } from 'react-native';
-import { CLOUD } from '@/constants/cloudTheme';
+import { useThemeStore } from '@/store/themeStore';
 
 export default function AppLayout() {
   const isHydrated = useAuthStore((s) => s.isHydrated);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const colors = useThemeStore((s) => s.colors);
 
   if (!isHydrated) {
     return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: CLOUD.bg }}>
-        <ActivityIndicator color={CLOUD.primary} />
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.bg }}>
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -23,7 +24,7 @@ export default function AppLayout() {
     <Stack
       screenOptions={{
         headerShown: false,
-        contentStyle: { backgroundColor: CLOUD.bg },
+        contentStyle: { backgroundColor: colors.bg },
         animation: 'slide_from_right',
       }}
     >
@@ -40,6 +41,7 @@ export default function AppLayout() {
         options={{ animation: 'fade', gestureEnabled: false }}
       />
       <Stack.Screen name="travel-vault" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen name="urbanlens-now" options={{ animation: 'slide_from_right' }} />
     </Stack>
   );
 }

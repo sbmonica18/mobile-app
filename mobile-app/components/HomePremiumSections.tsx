@@ -177,7 +177,7 @@ export const TrendingNearbySection = memo(function TrendingNearbySection() {
 
   return (
     <Animated.View entering={FadeInUp.duration(450)} style={styles.section}>
-      <Text style={styles.sectionTitle}>Trending Nearby</Text>
+      <Text style={styles.sectionTitle}>Today's AI Picks</Text>
       <Animated.ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}

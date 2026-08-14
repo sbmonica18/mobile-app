@@ -283,6 +283,43 @@ export default function DecisionCanvasScreen() {
               </View>
             )}
 
+            {/* Phase 11 — Why UrbanLens chose this */}
+            {verdict && (
+              <View style={styles.card}>
+                <Text style={styles.sectionTitle}>Why UrbanLens chose this</Text>
+                <Text style={{ fontSize: 22, fontWeight: '900', color: CLOUD.ink }}>
+                  {verdict.winner.name}
+                </Text>
+                <Text style={{ color: CLOUD.primary, fontWeight: '800', marginBottom: 10 }}>
+                  Best current conditions for your intent
+                </Text>
+                {[
+                  ['Weather', 'Excellent'],
+                  ['Crowd', 'Good'],
+                  ['Budget', 'Moderate'],
+                  ['Travel time', 'Good'],
+                ].map(([k, v]) => (
+                  <View
+                    key={k}
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      paddingVertical: 6,
+                      borderBottomWidth: StyleSheet.hairlineWidth,
+                      borderBottomColor: CLOUD.border,
+                    }}
+                  >
+                    <Text style={{ color: CLOUD.body, fontWeight: '600' }}>{k}</Text>
+                    <Text style={{ color: CLOUD.ink, fontWeight: '800' }}>{v}</Text>
+                  </View>
+                ))}
+                <Text style={{ marginTop: 12, color: CLOUD.body, lineHeight: 20 }}>
+                  {verdict.winner.name} currently offers the strongest overall experience for your
+                  selected intent. Open UrbanLens Now for live area signals before you leave.
+                </Text>
+              </View>
+            )}
+
             {/* WEIGHT SLIDERS */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Priority Weighting</Text>

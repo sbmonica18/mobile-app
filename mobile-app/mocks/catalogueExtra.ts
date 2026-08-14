@@ -76,7 +76,7 @@ export const extraDestinations: Destination[] = [
     styles: ['Friends', 'Couple', 'Family'],
     categories: ['beach', 'coastal', 'culture', 'food', 'photo', 'sunset', 'weekend'],
     popularity: 98,
-    coordinates: { latitude: 15.2993, longitude: 74.124 },
+    coordinates: { latitude: 15.4909, longitude: 73.8278 },
   },
   {
     id: 'mumbai',

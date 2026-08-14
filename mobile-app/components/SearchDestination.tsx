@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { CLOUD } from '@/constants/cloudTheme';
+import { useThemeStore } from '@/store/themeStore';
 import Animated, {
   Easing,
   FadeIn,
@@ -34,6 +35,7 @@ export function SearchDestination() {
   const [focused, setFocused] = useState(false);
   const router = useRouter();
   const setFilters = useAiFlowStore((s) => s.setFilters);
+  const colors = useThemeStore((s) => s.colors);
   const focus = useSharedValue(0);
   const iconBob = useSharedValue(0);
 
@@ -110,7 +112,12 @@ export function SearchDestination() {
 
   return (
     <Animated.View
-      style={[styles.container, shellStyle, showDropdown && styles.containerRaised]}
+      style={[
+        styles.container,
+        { backgroundColor: colors.card, borderColor: colors.border },
+        shellStyle,
+        showDropdown && styles.containerRaised,
+      ]}
       collapsable={false}
     >
       <View style={styles.inputRow}>
@@ -118,7 +125,7 @@ export function SearchDestination() {
           <Ionicons
             name="search"
             size={20}
-            color={focused ? CLOUD.primary : CLOUD.muted}
+            color={focused ? colors.primary : colors.muted}
           />
         </Animated.View>
         <View style={styles.inputCol}>
@@ -129,8 +136,8 @@ export function SearchDestination() {
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => setFocused(false), 220)}
             placeholder={focused || query ? '' : 'Search destination...'}
-            placeholderTextColor={CLOUD.muted}
-            style={styles.input}
+            placeholderTextColor={colors.muted}
+            style={[styles.input, { color: colors.ink }]}
             returnKeyType="search"
             onSubmitEditing={onSubmit}
           />

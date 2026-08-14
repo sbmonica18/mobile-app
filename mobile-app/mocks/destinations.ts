@@ -18,10 +18,18 @@ export type Destination = {
 };
 
 import { extraDestinations } from './catalogueExtra';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { withTravelFromOrigin } from '@/utils/travelEstimate';
 
 const baseDestinations: Destination[] = [];
 
 export const mockDestinations: Destination[] = [...baseDestinations, ...extraDestinations];
+
+function liveTravel(list: Destination[]): Destination[] {
+  const src = useDashboardStore.getState().source;
+  if (!src?.latitude || !src?.longitude) return list;
+  return withTravelFromOrigin(list, { latitude: src.latitude, longitude: src.longitude });
+}
 
 /** True when the catalog cannot honestly answer this query. */
 export function isUnmatchableTravelQuery(phrase: string): boolean {
@@ -157,9 +165,11 @@ export function getRecommendations(filters: IntentFilters = {}): Destination[] {
   const hardFilter = phraseLower && !experiencePool ? hardCategoryFilter(phraseLower) : null;
   const wantsNearby = /nearby|short|quick|day trip|half.?day|weekend escape/.test(phraseLower);
 
-  const universe = experiencePool
-    ? mockDestinations.filter((d) => experiencePool.has(d.id))
-    : mockDestinations;
+  const universe = liveTravel(
+    experiencePool
+      ? mockDestinations.filter((d) => experiencePool.has(d.id))
+      : mockDestinations,
+  );
 
   const scored = universe.map((d) => {
     let score = d.popularity * 0.45 + d.matchScore * 0.35;

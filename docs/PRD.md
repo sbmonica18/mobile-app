@@ -65,13 +65,13 @@ The Home screen is discovery-focused. Deeper AI, route, map, and story flows liv
 | 8 | Journey companion / live navigation | **Done (MVP)** |
 | 9 | Smart route story | **Done (lite)** |
 | 10 | AI Journey Story + Travel Vault | **Done (MVP)** |
-| 11 | Notifications | **Planned** |
+| 11 | UrbanLens Now continuous intelligence | **Done (MVP)** |
 | 12 | Full user profile | **Partial / Planned** |
 | 13 | Admin dashboard (web) | **Planned** |
 | 14 | Testing | **Planned** |
 | 15 | Deployment | **Planned** |
 
-**MVP cutoff:** Phases **1–10** form the solid final-year demo.
+**MVP cutoff:** Phases **1–11** form the solid final-year demo.
 
 ---
 

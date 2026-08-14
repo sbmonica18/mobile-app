@@ -1,10 +1,12 @@
 import { HomeShell } from '@/components/HomeDashboard';
+import { AppearancePicker } from '@/components/AppearancePicker';
 import { AnimatedCounter } from '@/components/journey-story/JourneyStoryKit';
-import { CLOUD } from '@/constants/cloudTheme';
+import { CLOUD, layoutPad } from '@/constants/cloudTheme';
 import { updateProfile } from '@/services/authService';
 import { useAuthStore } from '@/store/authStore';
 import { useJourneyStoryStore } from '@/store/journeyStoryStore';
 import { useProfilePreferencesStore } from '@/store/profilePreferencesStore';
+import { useThemeStore } from '@/store/themeStore';
 import { computeAchievements, computeTravelStats } from '@/utils/profileStats';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
@@ -16,6 +18,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import Animated, {
@@ -101,6 +104,9 @@ export default function ProfileScreen() {
   const [editName, setEditName] = useState('');
   const [saving, setSaving] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const colors = useThemeStore((s) => s.colors);
+  const { width } = useWindowDimensions();
+  const pad = layoutPad(width);
 
   useFocusEffect(
     useCallback(() => {
@@ -174,14 +180,14 @@ export default function ProfileScreen() {
     return (
       <HomeShell>
         <SafeAreaView style={styles.safe} edges={['top']}>
-          <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-            <Text style={styles.title}>Profile</Text>
-            <Animated.View entering={FadeInDown.duration(360)} style={styles.guestCard}>
+          <ScrollView contentContainerStyle={[styles.scroll, { paddingHorizontal: pad }]} showsVerticalScrollIndicator={false}>
+            <Text style={[styles.title, { color: colors.ink }]}>Profile</Text>
+            <Animated.View entering={FadeInDown.duration(360)} style={[styles.guestCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>G</Text>
               </View>
-              <Text style={styles.name}>Guest explorer</Text>
-              <Text style={styles.email}>
+              <Text style={[styles.name, { color: colors.ink }]}>Guest explorer</Text>
+              <Text style={[styles.email, { color: colors.muted }]}>
                 Sign in or create an account to see your profile details, travel stats,
                 achievements, and quick links.
               </Text>
@@ -193,6 +199,7 @@ export default function ProfileScreen() {
                 <Text style={styles.guestExitText}>Exit guest mode</Text>
               </Pressable>
             </Animated.View>
+            <AppearancePicker />
           </ScrollView>
         </SafeAreaView>
       </HomeShell>
@@ -202,10 +209,10 @@ export default function ProfileScreen() {
   return (
     <HomeShell>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <Text style={styles.title}>Profile</Text>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingHorizontal: pad }]} showsVerticalScrollIndicator={false}>
+          <Text style={[styles.title, { color: colors.ink }]}>Profile</Text>
 
-          <Animated.View entering={FadeInDown.duration(360)} style={styles.headerCard}>
+          <Animated.View entering={FadeInDown.duration(360)} style={[styles.headerCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Pressable onPress={openEdit} style={styles.avatarWrap}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>{initials}</Text>
@@ -214,16 +221,18 @@ export default function ProfileScreen() {
                 <Ionicons name="pencil" size={12} color="#fff" />
               </View>
             </Pressable>
-            <Text style={styles.name}>{user?.fullName || 'Traveler'}</Text>
-            <Text style={styles.email}>{user?.email}</Text>
+            <Text style={[styles.name, { color: colors.ink }]}>{user?.fullName || 'Traveler'}</Text>
+            <Text style={[styles.email, { color: colors.muted }]}>{user?.email}</Text>
             <Pressable onPress={openEdit} hitSlop={8}>
               <Text style={styles.editLink}>Edit profile</Text>
             </Pressable>
           </Animated.View>
 
+          <AppearancePicker />
+
           <Animated.View entering={FadeInUp.delay(80).duration(360)} style={styles.section}>
-            <Text style={styles.sectionTitle}>Travel Stats</Text>
-            <View style={styles.statsRow}>
+            <Text style={[styles.sectionTitle, { color: colors.ink }]}>Travel Stats</Text>
+            <View style={[styles.statsRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <View style={styles.statCell}>
                 <AnimatedCounter value={stats.tripsCompleted} />
                 <Text style={styles.statLabel}>Trips</Text>
@@ -260,7 +269,7 @@ export default function ProfileScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(140).duration(360)} style={styles.section}>
-            <Text style={styles.sectionTitle}>Achievements</Text>
+            <Text style={[styles.sectionTitle, { color: colors.ink }]}>Achievements</Text>
             <View style={styles.badgeGrid}>
               {achievements.map((a) => (
                 <AchievementBadge
@@ -277,21 +286,21 @@ export default function ProfileScreen() {
           </Animated.View>
 
           <Animated.View entering={FadeInUp.delay(200).duration(360)} style={styles.section}>
-            <Text style={styles.sectionTitle}>Quick Links</Text>
-            <Pressable style={styles.linkRow} onPress={() => router.push('/(app)/(tabs)/saved')}>
-              <Ionicons name="heart-outline" size={20} color={CLOUD.primary} />
-              <Text style={styles.linkText}>Saved destinations</Text>
-              <Ionicons name="chevron-forward" size={18} color={CLOUD.muted} />
+            <Text style={[styles.sectionTitle, { color: colors.ink }]}>Quick Links</Text>
+            <Pressable style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push('/(app)/(tabs)/saved')}>
+              <Ionicons name="heart-outline" size={20} color={colors.primary} />
+              <Text style={[styles.linkText, { color: colors.ink }]}>Saved destinations</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Pressable>
-            <Pressable style={styles.linkRow} onPress={() => router.push('/(app)/travel-vault')}>
-              <Ionicons name="albums-outline" size={20} color={CLOUD.primary} />
-              <Text style={styles.linkText}>Travel Vault</Text>
-              <Ionicons name="chevron-forward" size={18} color={CLOUD.muted} />
+            <Pressable style={[styles.linkRow, { backgroundColor: colors.card, borderColor: colors.border }]} onPress={() => router.push('/(app)/travel-vault')}>
+              <Ionicons name="albums-outline" size={20} color={colors.primary} />
+              <Text style={[styles.linkText, { color: colors.ink }]}>Travel Vault</Text>
+              <Ionicons name="chevron-forward" size={18} color={colors.muted} />
             </Pressable>
           </Animated.View>
 
-          <Pressable onPress={onLogout} style={styles.logout}>
-            <Text style={styles.logoutText}>Log out</Text>
+          <Pressable onPress={onLogout} style={[styles.logout, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <Text style={[styles.logoutText, { color: colors.ink }]}>Log out</Text>
           </Pressable>
 
           <View style={{ height: 32 }} />
@@ -301,15 +310,15 @@ export default function ProfileScreen() {
       <Modal visible={editOpen} transparent animationType="fade" onRequestClose={() => setEditOpen(false)}>
         <View style={styles.modalOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => !saving && setEditOpen(false)} />
-          <View style={styles.modalSheet}>
-            <Text style={styles.modalTitle}>Edit profile</Text>
-            <Text style={styles.prefLabel}>Name</Text>
+          <View style={[styles.modalSheet, { backgroundColor: colors.card }]}>
+            <Text style={[styles.modalTitle, { color: colors.ink }]}>Edit profile</Text>
+            <Text style={[styles.prefLabel, { color: colors.ink }]}>Name</Text>
             <TextInput
               value={editName}
               onChangeText={setEditName}
-              style={styles.input}
+              style={[styles.input, { color: colors.ink, borderColor: colors.border, backgroundColor: colors.soft }]}
               placeholder="Your name"
-              placeholderTextColor={CLOUD.muted}
+              placeholderTextColor={colors.muted}
               autoFocus
               editable={!saving}
             />
@@ -330,7 +339,7 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
-  scroll: { paddingHorizontal: CLOUD.pad, paddingTop: 12 },
+  scroll: { paddingTop: 12, paddingBottom: 16 },
   title: { color: CLOUD.ink, fontSize: 28, fontWeight: '800', marginBottom: 16 },
   headerCard: {
     backgroundColor: CLOUD.card,

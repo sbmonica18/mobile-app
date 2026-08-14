@@ -14,14 +14,17 @@ import Animated, {
   Easing,
   withRepeat,
   useAnimatedScrollHandler,
+  useReducedMotion,
   FadeInUp,
   FadeInDown,
   FadeOutDown,
 } from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Fuel } from 'lucide-react-native';
 import { CLOUD } from '@/constants/cloudTheme';
 import { getDestinationIntelligence } from '@/mocks/destinationIntelligence';
+import { estimateJourney, formatTravelTime, journeyTotal, type JourneyMode } from '@/utils/travelEstimate';
 import { mockDestinations } from '@/mocks/destinations';
 import {
   fetchDestinationNearbyPlaces,
@@ -33,7 +36,11 @@ import { useProfilePreferencesStore } from '@/store/profilePreferencesStore';
 import Svg, { Circle } from 'react-native-svg';
 import { MatchRing } from '../recommendations';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { IdealPlanSheet } from '@/components/intelligence/IdealPlanSheet';
+import { LiveDestinationPulse } from '@/components/intelligence/LiveDestinationPulse';
+import { WhatChangedCard } from '@/components/intelligence/WhatChangedCard';
 import { resolveCondition, isDayTime, getWeatherIcon } from '@/constants/weatherTheme';
+import { useIntelligenceStore } from '@/store/intelligenceStore';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -165,60 +172,96 @@ function AIInsightCard({ text }: { text: string }) {
 // --------------------------------------------------
 // SECTION 4: Destination Readiness Score
 // --------------------------------------------------
-function ReadinessScore({ score }: { score: number }) {
+function ReadinessScore({ score, band }: { score: number; band?: string }) {
+  const reduceMotion = !!useReducedMotion();
   const progress = useSharedValue(0);
+  const breathe = useSharedValue(0);
   const [displayScore, setDisplayScore] = useState(0);
 
   useEffect(() => {
-    progress.value = withTiming(score / 100, { duration: 600, easing: Easing.out(Easing.cubic) });
-    
+    progress.value = withTiming(score / 100, { duration: 1100, easing: Easing.out(Easing.cubic) });
     let start = 0;
-    const duration = 600; 
-    const stepTime = Math.max(10, Math.floor(duration / Math.max(1, score)));
-    let timer = setInterval(() => {
+    const duration = 1100;
+    const stepTime = Math.max(14, Math.floor(duration / Math.max(1, score)));
+    const timer = setInterval(() => {
       start += 1;
       setDisplayScore(start);
       if (start >= score) clearInterval(timer);
     }, stepTime);
+
+    if (reduceMotion) {
+      breathe.value = 0;
+    } else {
+      breathe.value = withRepeat(
+        withTiming(1, { duration: 3200, easing: Easing.inOut(Easing.quad) }),
+        -1,
+        true,
+      );
+    }
+
     return () => clearInterval(timer);
-  }, [score]);
+  }, [breathe, progress, reduceMotion, score]);
 
-  let color: string = CLOUD.success;
-  if (score >= 80) color = CLOUD.success;
-  else if (score >= 60) color = CLOUD.primary;
-  else if (score >= 40) color = CLOUD.warning;
-  else color = CLOUD.danger;
-
-  const size = 180;
-  const strokeWidth = 14;
-  const radius = (size - strokeWidth) / 2;
+  const size = 176;
+  const strokeWidth = 8;
+  const radius = (size - strokeWidth) / 2 - 4;
   const circumference = radius * 2 * Math.PI;
+  const orb = 124;
 
   const animatedProps = useAnimatedProps(() => ({
     strokeDashoffset: circumference - progress.value * circumference,
   }));
 
+  const orbStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: interpolate(breathe.value, [0, 1], [0, -4], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  const glowStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(breathe.value, [0, 1], [0.22, 0.4], Extrapolation.CLAMP),
+  }));
+
   return (
     <View style={styles.readinessContainer}>
-      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
-        <Svg width={size} height={size} style={{ position: 'absolute' }}>
-          <Circle cx={size/2} cy={size/2} r={radius} stroke="#E2E8F0" strokeWidth={strokeWidth} fill="none" />
-          <AnimatedCircle
-            cx={size/2}
-            cy={size/2}
+      <Text style={styles.sectionTitle}>Destination Readiness</Text>
+      <Animated.View style={[styles.readinessStage, orbStyle]}>
+        <Animated.View style={[styles.readinessGlow, glowStyle]} />
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+          <Circle
+            cx={size / 2}
+            cy={size / 2}
             r={radius}
-            stroke={color}
+            stroke={CLOUD.border}
+            strokeWidth={strokeWidth}
+            fill="none"
+          />
+          <AnimatedCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={CLOUD.primary}
             strokeWidth={strokeWidth}
             fill="none"
             strokeLinecap="round"
             strokeDasharray={circumference}
             animatedProps={animatedProps}
             rotation="-90"
-            origin={`${size/2}, ${size/2}`}
+            origin={`${size / 2}, ${size / 2}`}
           />
         </Svg>
-        <Text style={styles.readinessScoreText}>{displayScore}</Text>
-      </View>
+        <View style={[styles.readinessOrbWrap, { width: orb, height: orb, borderRadius: orb / 2 }]}>
+          <LinearGradient
+            colors={['#FFFFFF', CLOUD.lightBlue, '#DBEAFE']}
+            start={{ x: 0.2, y: 0.05 }}
+            end={{ x: 0.85, y: 1 }}
+            style={[StyleSheet.absoluteFill, { borderRadius: orb / 2 }]}
+          />
+          <View style={styles.readinessShine} />
+          <Text style={styles.readinessScoreText}>{displayScore}</Text>
+          <Text style={styles.readinessCaption}>{band || 'Ready'}</Text>
+        </View>
+      </Animated.View>
     </View>
   );
 }
@@ -226,45 +269,98 @@ function ReadinessScore({ score }: { score: number }) {
 // --------------------------------------------------
 // SECTION 5: Travel Conditions
 // --------------------------------------------------
-function TravelConditions({ dist, timeMin, conditions, transportMode, destinationId }: any) {
-  let fuel = conditions.fuelCost;
-  let toll = conditions.tollCost;
-  
-  if (transportMode === 'Bike') {
-    fuel = Math.round(fuel / 2);
-    toll = 0;
-  } else if (transportMode === 'Public Transport' || transportMode === 'Walk') {
-    fuel = 0;
-    toll = 0;
-  }
-  const total = fuel + toll + (conditions.totalCost - conditions.fuelCost - conditions.tollCost);
+function TravelConditions({
+  dist,
+  plan,
+  mode,
+  onMode,
+}: {
+  dist: number;
+  plan: ReturnType<typeof estimateJourney>;
+  mode: JourneyMode;
+  onMode: (m: JourneyMode) => void;
+}) {
+  const quote = plan.modes.find((m) => m.mode === mode) || plan.modes[0];
+  const total = journeyTotal(plan, mode);
+  const rec = plan.modes.find((m) => m.mode === plan.recommended);
 
-  const items = [
-    { label: 'Distance', val: `${dist} km` },
-    { label: 'Travel Time', val: `${Math.floor(timeMin/60)}h ${timeMin%60}m` },
-    { label: 'Fuel Cost', val: `₹${fuel}` },
-    { label: 'Toll Cost', val: `₹${toll}` },
-  ];
+  const items = quote.available
+    ? [
+        { label: 'Distance', val: `${dist} km` },
+        { label: 'Travel Time', val: formatTravelTime(quote.durationMin) },
+        ...quote.cards.map((c) => ({ label: c.label, val: c.value })),
+      ]
+    : [
+        { label: 'Distance', val: `${dist} km` },
+        { label: 'This mode', val: 'Not practical' },
+      ];
 
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Travel Conditions</Text>
+      <Text style={{ color: CLOUD.muted, fontSize: 13, fontWeight: '600', marginBottom: 12 }}>
+        Best from your location: {rec?.label || 'Car'}
+        {rec?.available ? ` · ${formatTravelTime(rec.durationMin)} · ₹${rec.transportCost}` : ''}
+      </Text>
+      <View style={{ flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+        {plan.modes.map((m) => {
+          const on = m.mode === mode;
+          return (
+            <Pressable
+              key={m.mode}
+              onPress={() => onMode(m.mode)}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+                borderRadius: 20,
+                borderWidth: 1.5,
+                borderColor: on ? CLOUD.primary : CLOUD.border,
+                backgroundColor: on ? CLOUD.lightBlue : CLOUD.card,
+                opacity: m.available ? 1 : 0.55,
+              }}
+            >
+              <Text style={{ fontWeight: '800', fontSize: 12, color: on ? CLOUD.primary : CLOUD.body }}>
+                {m.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+      {!quote.available && quote.reason ? (
+        <View
+          style={{
+            backgroundColor: CLOUD.soft,
+            borderRadius: 14,
+            padding: 12,
+            marginBottom: 12,
+            borderWidth: 1,
+            borderColor: CLOUD.border,
+          }}
+        >
+          <Text style={{ color: CLOUD.body, fontSize: 13, fontWeight: '600', lineHeight: 19 }}>
+            {quote.reason}
+          </Text>
+        </View>
+      ) : null}
       <View style={styles.grid}>
         {items.map((it, i) => (
-          <Animated.View key={i} style={styles.gridItemHalf} entering={FadeInUp.delay(i * 50)}>
+          <Animated.View key={`${it.label}-${i}`} style={styles.gridItemHalf} entering={FadeInUp.delay(i * 40)}>
             <View style={styles.compactCard}>
               <Text style={styles.ccLabel}>{it.label}</Text>
               <Text style={styles.ccValue}>{it.val}</Text>
             </View>
           </Animated.View>
         ))}
-        <Animated.View style={styles.gridItemFull} entering={FadeInUp.delay(items.length * 50)}>
+        <Animated.View style={styles.gridItemFull} entering={FadeInUp.delay(items.length * 40)}>
           <View style={[styles.compactCard, styles.promotedCard]}>
-            <Text style={styles.promotedLabel}>Total Journey Cost</Text>
+            <Text style={styles.promotedLabel}>Total estimate (1 night)</Text>
             <Text style={styles.promotedValue}>₹{total}</Text>
           </View>
         </Animated.View>
       </View>
+      <Text style={{ color: CLOUD.muted, fontSize: 12, fontWeight: '600', marginTop: 10, lineHeight: 17 }}>
+        Includes {quote.available ? `${quote.label.toLowerCase()} + ` : ''}stay ₹{plan.stay} · food ₹{plan.food} · local ₹{plan.local}. Per person, one way.
+      </Text>
     </View>
   );
 }
@@ -320,7 +416,15 @@ function EnvironmentOverview({ env }: any) {
 // --------------------------------------------------
 // SECTION 7: Budget Estimation
 // --------------------------------------------------
-function BudgetEstimation({ budget }: any) {
+function BudgetEstimation({
+  budget,
+  transportCost,
+  transportLabel,
+}: {
+  budget: any;
+  transportCost: number;
+  transportLabel: string;
+}) {
   const preferences = useProfilePreferencesStore((s) => s.preferences);
   const preferredStyle = preferences.travelStyle;
   const initialType =
@@ -334,15 +438,15 @@ function BudgetEstimation({ budget }: any) {
   const [people, setPeople] = useState(initialType === 'Solo' ? 1 : 2);
   const [days, setDays] = useState(3);
 
-  const isShared = (label: string) => label === 'Fuel' || label === 'Parking';
+  const isShared = (label: string) => label === 'Transport' || label === 'Parking';
   const isPerDay = (label: string) => label === 'Accommodation' || label === 'Food';
-  
+
   const rows = [
-    { label: 'Fuel', base: budget.fuel, icon: 'car-outline' },
-    { label: 'Food', base: budget.food, icon: 'restaurant-outline' },
-    { label: 'Entry Fees', base: budget.entryFees, icon: 'ticket-outline' },
-    { label: 'Parking', base: budget.parking, icon: 'car-sport-outline' },
-    { label: 'Accommodation', base: budget.accommodation, icon: 'bed-outline' },
+    { label: 'Transport', base: transportCost, icon: 'navigate-outline' },
+    { label: 'Food', base: Math.max(budget.food, 700), icon: 'restaurant-outline' },
+    { label: 'Entry Fees', base: Math.max(budget.entryFees, 250), icon: 'ticket-outline' },
+    { label: 'Parking', base: transportLabel === 'Car' ? Math.max(budget.parking, 150) : 0, icon: 'car-sport-outline' },
+    { label: 'Accommodation', base: Math.max(budget.accommodation, 1800), icon: 'bed-outline' },
   ].map(row => {
     let multiplier = 1;
     if (!isShared(row.label)) multiplier *= people;
@@ -891,6 +995,11 @@ export default function DestinationIntelligenceScreen() {
   const saveDestination = useAiFlowStore(s => s.saveDestination);
   const unsaveDestination = useAiFlowStore(s => s.unsaveDestination);
   const userOrigin = useDashboardStore((s) => s.source);
+  const weather = useDashboardStore((s) => s.weather);
+  const snapshot = useIntelligenceStore((s) => s.snapshot);
+  const refreshIntel = useIntelligenceStore((s) => s.refresh);
+  const hydratePriors = useIntelligenceStore((s) => s.hydratePriors);
+  const [planOpen, setPlanOpen] = useState(false);
   
   // Parse `id` safely
   const destId = Array.isArray(id) ? id[0] : id || '';
@@ -903,47 +1012,78 @@ export default function DestinationIntelligenceScreen() {
     [destId, userOrigin?.latitude, userOrigin?.longitude],
   );
 
+  useEffect(() => {
+    void hydratePriors().then(() =>
+      refreshIntel({
+        source: userOrigin,
+        weather,
+        destination: {
+          id: data.id,
+          name: data.name,
+          matchScore: data.matchScore,
+          distanceKm: data.distanceKm,
+          travelTimeMin: data.travelTimeMin,
+          crowdLevel: data.crowdSafety.crowdLevel,
+          parkingAvailability: data.crowdSafety.parkingAvailability,
+          rainProbability: data.environment.rainProbability,
+          weatherLabel: data.environment.weather,
+          tempC: data.environment.tempC,
+        },
+        withScan: false,
+      }),
+    );
+  }, [data.id, data.name, hydratePriors, refreshIntel, userOrigin, weather]);
+
   const catalogCoords = useMemo(
     () => mockDestinations.find((d) => d.id === destId)?.coordinates ?? null,
     [destId],
   );
 
-  const [liveAttractions, setLiveAttractions] = useState<NearbyAttraction[] | null>(null);
+  const journeyPlan = useMemo(
+    () =>
+      estimateJourney({
+        destId,
+        roadKm: data.distanceKm,
+        origin: userOrigin
+          ? { latitude: userOrigin.latitude, longitude: userOrigin.longitude }
+          : null,
+        dest: catalogCoords,
+        tier: data.budget?.tier,
+        hint: transportMode,
+      }),
+    [destId, data.distanceKm, data.budget?.tier, userOrigin?.latitude, userOrigin?.longitude, catalogCoords, transportMode],
+  );
+
+  const [journeyMode, setJourneyMode] = useState<JourneyMode>(journeyPlan.recommended);
+  useEffect(() => {
+    setJourneyMode(journeyPlan.recommended);
+  }, [journeyPlan.recommended, destId]);
+
+  const activeQuote = journeyPlan.modes.find((m) => m.mode === journeyMode);
+
   const [liveServices, setLiveServices] = useState<NearbyService[] | null>(null);
 
   useEffect(() => {
-    setLiveAttractions(null);
     setLiveServices(null);
     if (!catalogCoords) return;
     let cancelled = false;
-    const catalogueImages = data.attractions;
     (async () => {
       try {
         const nearby = await fetchDestinationNearbyPlaces(catalogCoords);
         if (cancelled) return;
-        if (nearby.attractions.length > 0) {
-          setLiveAttractions(
-            nearby.attractions.map((a, i) => ({
-              ...a,
-              image:
-                catalogueImages.find((m) => m.name.toLowerCase() === a.name.toLowerCase())
-                  ?.image || catalogueImages[i % Math.max(1, catalogueImages.length)]?.image,
-            })),
-          );
-        }
         if (nearby.services.length > 0) {
           setLiveServices(nearby.services);
         }
       } catch {
-        // Fall back to catalogue items (already have retained lat/lng)
+        // Keep catalogue services
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [catalogCoords, destId, data.attractions]);
+  }, [catalogCoords, destId]);
 
-  const attractionsForUi = liveAttractions?.length ? liveAttractions : data.attractions;
+  const attractionsForUi = data.attractions;
   const servicesForUi = liveServices?.length ? liveServices : data.services;
 
   const navigateToSpot = (spot: SpotCoords) => {
@@ -1060,25 +1200,39 @@ export default function DestinationIntelligenceScreen() {
           image={data.heroImage} 
           name={data.name} 
           distanceKm={data.distanceKm} 
-          travelTimeMin={data.travelTimeMin}
+          travelTimeMin={activeQuote?.available ? activeQuote.durationMin : data.travelTimeMin}
           matchScore={data.matchScore} 
         />
         
         <View style={styles.contentPad}>
           {/* SECTION 3: AI Intelligence Summary */}
           <AIInsightCard text={data.aiSummary} />
+
+          {/* Phase 11 — Live Destination Pulse + What Changed */}
+          {snapshot?.pulse ? (
+            <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
+              <LiveDestinationPulse pulse={snapshot.pulse} matchScore={data.matchScore} />
+            </View>
+          ) : null}
+          {snapshot?.whatChanged ? (
+            <View style={{ marginTop: 16, paddingHorizontal: 20 }}>
+              <WhatChangedCard
+                data={snapshot.whatChanged}
+                onRebuild={() => setPlanOpen(true)}
+              />
+            </View>
+          ) : null}
           
           {/* SECTION 4: Destination Readiness Score */}
-          <ReadinessScore score={data.readinessScore} />
+          <ReadinessScore score={data.readinessScore} band={data.readinessBand} />
 
           {/* SECTION 5: Travel Conditions */}
           <View style={{ marginTop: 24, paddingHorizontal: 20 }}>
-            <TravelConditions 
-              dist={data.distanceKm} 
-              timeMin={data.travelTimeMin} 
-              conditions={data.travelConditions} 
-              transportMode={transportMode}
-              destinationId={data.id}
+            <TravelConditions
+              dist={data.distanceKm}
+              plan={journeyPlan}
+              mode={journeyMode}
+              onMode={setJourneyMode}
             />
           </View>
 
@@ -1086,7 +1240,11 @@ export default function DestinationIntelligenceScreen() {
           <EnvironmentOverview env={data.environment} />
 
           {/* SECTION 7: Budget Estimation */}
-          <BudgetEstimation budget={data.budget} />
+          <BudgetEstimation
+            budget={data.budget}
+            transportCost={activeQuote?.available ? activeQuote.transportCost : 0}
+            transportLabel={activeQuote?.label || 'Car'}
+          />
 
           {/* SECTION 8: Crowd & Safety Intelligence */}
           <CrowdSafetyIntelligence data={data.crowdSafety} />
@@ -1126,6 +1284,16 @@ export default function DestinationIntelligenceScreen() {
       )}
 
       <BottomTabBar activeTab="Explore" />
+
+      <IdealPlanSheet
+        visible={planOpen}
+        plan={snapshot?.idealPlan ?? null}
+        onClose={() => setPlanOpen(false)}
+        onStartJourney={() => {
+          setPlanOpen(false);
+          router.push(`/(app)/(ai-flow)/route-navigation?destinationId=${id}` as Href);
+        }}
+      />
     </View>
   );
 }
@@ -1240,12 +1408,57 @@ const styles = StyleSheet.create({
   
   readinessContainer: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 8,
+    paddingHorizontal: 20,
+  },
+  readinessStage: {
+    width: 176,
+    height: 176,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  readinessGlow: {
+    position: 'absolute',
+    width: 128,
+    height: 128,
+    borderRadius: 64,
+    backgroundColor: CLOUD.lightBlue,
+    shadowColor: CLOUD.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+  },
+  readinessOrbWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(37,99,235,0.18)',
+    backgroundColor: CLOUD.card,
+  },
+  readinessShine: {
+    position: 'absolute',
+    top: 16,
+    left: 28,
+    width: 48,
+    height: 22,
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.7)',
   },
   readinessScoreText: {
-    fontSize: 56,
+    fontSize: 40,
     fontWeight: '800',
     color: CLOUD.ink,
+    letterSpacing: -0.8,
+  },
+  readinessCaption: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: '700',
+    color: CLOUD.primary,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase',
   },
   bandPill: {
     marginTop: 16,

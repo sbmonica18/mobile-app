@@ -1,6 +1,7 @@
 import { CLOUD } from '@/constants/cloudTheme';
 import { fetchJourneyStoriesRemote } from '@/services/journeyStoryApi';
 import { useAuthStore } from '@/store/authStore';
+import { useIntelligenceStore } from '@/store/intelligenceStore';
 import { useJourneyStoryStore } from '@/store/journeyStoryStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,6 +27,7 @@ export default function TravelVaultScreen() {
   const isGuest = useAuthStore((s) => s.isGuest);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const userId = useAuthStore((s) => s.user?.id);
+  const sessionImpact = useIntelligenceStore((s) => s.sessionImpact);
 
   useEffect(() => {
     void hydrateVault().then(async () => {
@@ -82,6 +84,14 @@ export default function TravelVaultScreen() {
                   <Text style={styles.cardStats}>
                     {story.statistics.distanceKm} km · ₹{story.statistics.totalBudgetInr}
                   </Text>
+                  {sessionImpact ? (
+                    <Text style={styles.intelMem}>
+                      Intelligence memory · est. {sessionImpact.minutesSavedEst} min helped ·{' '}
+                      {sessionImpact.conditionChanges} condition changes
+                    </Text>
+                  ) : (
+                    <Text style={styles.intelMem}>Journey + intelligence decisions archive</Text>
+                  )}
                 </LinearGradient>
               </ImageBackground>
               <Pressable
@@ -138,6 +148,12 @@ const styles = StyleSheet.create({
   cardTitle: { color: '#fff', fontSize: 22, fontWeight: '800' },
   cardMeta: { color: 'rgba(255,255,255,0.85)', marginTop: 4, fontWeight: '600' },
   cardStats: { color: 'rgba(255,255,255,0.8)', marginTop: 2, fontSize: 13 },
+  intelMem: {
+    color: 'rgba(196,181,253,0.95)',
+    marginTop: 6,
+    fontSize: 12,
+    fontWeight: '700',
+  },
   remove: { padding: 12, alignItems: 'flex-end' },
   removeText: { color: CLOUD.danger, fontWeight: '700', fontSize: 13 },
 });

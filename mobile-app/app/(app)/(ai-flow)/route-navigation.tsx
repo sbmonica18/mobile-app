@@ -28,6 +28,8 @@ import { generateJourneyStoryRemote } from '@/services/journeyStoryApi';
 import { useJourneyStoryStore } from '@/store/journeyStoryStore';
 import { persistJourneyStoryRemote } from '@/services/journeyStoryApi';
 import { useAuthStore } from '@/store/authStore';
+import { useDashboardStore } from '@/store/dashboardStore';
+import { useIntelligenceStore } from '@/store/intelligenceStore';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 
@@ -142,6 +144,14 @@ export default function RouteNavigationScreen() {
     coordinates: targetCoords,
   };
 
+  const source = useDashboardStore((s) => s.source);
+  const weather = useDashboardStore((s) => s.weather);
+  const companionEvents = useIntelligenceStore((s) => s.companionEvents);
+  const refreshIntel = useIntelligenceStore((s) => s.refresh);
+  const intelligenceLines = companionEvents.map(
+    (e) => `${e.title}: ${e.recommendation}`,
+  );
+
   const mapRef = useRef<MapView>(null);
   
   const [location, setLocation] = useState<Location.LocationObject | null>(null);
@@ -150,6 +160,19 @@ export default function RouteNavigationScreen() {
   const [isNavigating, setIsNavigating] = useState(false);
   const [cameraFollows, setCameraFollows] = useState(true);
   const [showConfetti, setShowConfetti] = useState(false);
+
+  useEffect(() => {
+    void refreshIntel({
+      source,
+      weather,
+      destination: {
+        id: dest.id,
+        name: dest.name,
+      },
+      journeyActive: isNavigating,
+      withScan: false,
+    });
+  }, [dest.id, dest.name, isNavigating, refreshIntel, source, weather]);
   /** Full tour: outbound to place, then return to source before budget + story. */
   const [tourLeg, setTourLeg] = useState<'outbound' | 'returning'>('outbound');
   const [reachedDestination, setReachedDestination] = useState(false);
@@ -755,6 +778,7 @@ export default function RouteNavigationScreen() {
           progressPct={Math.max(0, Math.min(1, 1 - (distanceRemaining / (activeRoute?.distanceKm || 1))))}
           tourLeg={tourLeg}
           onEndJourney={handleEndPress}
+          intelligenceLines={intelligenceLines}
         />
       )}
 

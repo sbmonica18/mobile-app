@@ -12,10 +12,12 @@ import {
   StoryShareCard,
   TravelScoreRing,
 } from '@/components/journey-story/JourneyStoryKit';
+import { UrbanLensImpactBlock } from '@/components/intelligence/UrbanLensImpactBlock';
 import { CLOUD } from '@/constants/cloudTheme';
 import { persistJourneyStoryRemote } from '@/services/journeyStoryApi';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
+import { useIntelligenceStore } from '@/store/intelligenceStore';
 import { useJourneyStoryStore } from '@/store/journeyStoryStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -38,6 +40,7 @@ export default function JourneyStoryScreen() {
   const clearJourneySession = useDashboardStore((s) => s.clearJourneySession);
   const isGuest = useAuthStore((s) => s.isGuest);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const sessionImpact = useIntelligenceStore((s) => s.sessionImpact);
   const [toast, setToast] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -116,6 +119,11 @@ export default function JourneyStoryScreen() {
         />
         <JourneyTimeline stops={story.timeline} />
         <JourneyStatisticsGrid stats={story.statistics} />
+        {sessionImpact ? (
+          <View style={{ paddingHorizontal: CLOUD.pad, marginTop: 16 }}>
+            <UrbanLensImpactBlock impact={sessionImpact} title="URBANLENS HELPED YOU" />
+          </View>
+        ) : null}
         <JourneyHighlights items={story.highlights} />
         <MemoryGallery
           memories={story.memories}

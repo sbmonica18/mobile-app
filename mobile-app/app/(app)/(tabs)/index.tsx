@@ -1,5 +1,6 @@
 import { ExperienceChips } from '@/components/ExperienceChips';
 import { HomeAiLaunchpad } from '@/components/HomeAiLaunchpad';
+import { HomeDiscoveryModules } from '@/components/HomeDiscoveryModules';
 import { HomeHeader, HomeShell } from '@/components/HomeDashboard';
 import {
   ContinueExploringSection,
@@ -7,20 +8,19 @@ import {
 } from '@/components/HomePremiumSections';
 import { LiveIntelligenceBar } from '@/components/LiveIntelligenceBar';
 import { SearchDestination } from '@/components/SearchDestination';
-import { CLOUD } from '@/constants/cloudTheme';
-import { fetchWeather, getCurrentUserLocation } from '@/services/locationService';
+import { CLOUD, layoutPad } from '@/constants/cloudTheme';
+import {
+  fetchWeather,
+  getCurrentUserLocation,
+  readCachedUserLocation,
+  refineUserLocationLabel,
+} from '@/services/locationService';
 import { useAiFlowStore } from '@/store/aiFlowStore';
 import { useAuthStore } from '@/store/authStore';
 import { useDashboardStore } from '@/store/dashboardStore';
 import { Href, router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  InteractionManager,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  View,
-} from 'react-native';
+import { RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Animated, { FadeInUp } from 'react-native-reanimated';
 
@@ -43,22 +43,40 @@ export default function HomeScreen() {
   const [pulseToken, setPulseToken] = useState(0);
 
   const displayName = isGuest ? 'Guest' : user?.fullName?.split(' ')[0] || 'Traveler';
+  const { width } = useWindowDimensions();
+  const pad = layoutPad(width);
 
   const bootstrap = useCallback(async () => {
-    setLocationLoading(true);
-    setWeatherLoading(true);
     setLocationError(null);
+    setWeatherLoading(true);
+
+    const cached = await readCachedUserLocation();
+    if (cached) {
+      setSource(cached);
+      setLocationLoading(false);
+    } else {
+      setLocationLoading(true);
+    }
+
     try {
       const location = await getCurrentUserLocation();
       setSource(location);
       setLocationLoading(false);
+      void refineUserLocationLabel(location).then(setSource);
       void fetchWeather(location.latitude, location.longitude)
         .then(setWeather)
         .catch(() => undefined)
         .finally(() => setWeatherLoading(false));
     } catch (error) {
+      if (cached) {
+        void fetchWeather(cached.latitude, cached.longitude)
+          .then(setWeather)
+          .catch(() => undefined)
+          .finally(() => setWeatherLoading(false));
+      } else {
+        setWeatherLoading(false);
+      }
       setLocationError(error instanceof Error ? error.message : 'Location unavailable');
-      setWeatherLoading(false);
       setLocationLoading(false);
     }
   }, [
@@ -70,11 +88,8 @@ export default function HomeScreen() {
   ]);
 
   useEffect(() => {
-    const task = InteractionManager.runAfterInteractions(() => {
-      void bootstrap();
-      void loadLists();
-    });
-    return () => task.cancel();
+    void bootstrap();
+    void loadLists();
   }, [bootstrap, loadLists]);
 
   const openShowcase = (mood?: string) => {
@@ -87,9 +102,19 @@ export default function HomeScreen() {
     <HomeShell>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView
-          contentContainerStyle={styles.content}
+          contentContainerStyle={[
+            styles.content,
+            {
+              paddingHorizontal: pad,
+              maxWidth: width > 600 ? 560 : undefined,
+              width: '100%',
+              alignSelf: width > 600 ? 'center' : undefined,
+            },
+          ]}
+          style={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          nestedScrollEnabled
           refreshControl={
             <RefreshControl
               refreshing={refreshing || locationLoading}
@@ -109,13 +134,15 @@ export default function HomeScreen() {
             onAvatarPress={() => router.push('/(app)/(tabs)/profile')}
           />
 
-          {/* Live Intelligence Bar — weather + Pulse (one card) */}
-          <LiveIntelligenceBar
-            refreshToken={pulseToken}
-            onRefreshWeather={() => void bootstrap()}
-          />
+          {/* Weather: fixed slot + floating overlay (does not push Home) */}
+          <View style={styles.weatherLayer}>
+            <LiveIntelligenceBar
+              refreshToken={pulseToken}
+              onRefreshWeather={() => void bootstrap()}
+            />
+          </View>
 
-          {/* AI Search Hero — primary CTA */}
+          {/* Discovery launchpad — Search + AI Explore + experience chips */}
           <Animated.View entering={FadeInUp.delay(40).duration(420)} style={styles.aiHero}>
             <View style={styles.searchWrap} collapsable={false}>
               <SearchDestination />
@@ -130,6 +157,8 @@ export default function HomeScreen() {
             <TrendingNearbySection />
           )}
 
+          <HomeDiscoveryModules />
+
           <View style={styles.bottomSpacer} />
         </ScrollView>
       </SafeAreaView>
@@ -139,10 +168,18 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1 },
+  scroll: {
+    flex: 1,
+    zIndex: 1,
+  },
   content: {
-    paddingHorizontal: CLOUD.pad,
-    paddingBottom: 36,
+    paddingBottom: 20,
     gap: 16,
+    overflow: 'visible',
+  },
+  weatherLayer: {
+    zIndex: 100,
+    elevation: 12,
   },
   aiHero: {
     gap: 14,
@@ -150,8 +187,8 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
   searchWrap: {
-    zIndex: 100,
-    elevation: 30,
+    zIndex: 1,
+    elevation: 2,
     overflow: 'visible',
   },
   bottomSpacer: { height: 8 },

@@ -12,6 +12,13 @@ export type PlaceItem = PlaceResult & {
   timestamp?: string;
 };
 
+export type WeatherHourSlot = {
+  label: string;
+  temperatureC: number;
+  code: number;
+  description: string;
+};
+
 export type WeatherInfo = {
   temperatureC: number;
   humidity: number;
@@ -23,6 +30,13 @@ export type WeatherInfo = {
   uvIndex?: number;
   /** Precipitation probability 0–100 for the current hour. */
   rainProbability?: number;
+  feelsLikeC?: number;
+  visibilityKm?: number;
+  pressureHpa?: number;
+  sunrise?: string;
+  sunset?: string;
+  /** Next few hours for expanded weather panel — only when API returns them. */
+  hourly?: WeatherHourSlot[];
 };
 
 export type UserLocation = {

@@ -1,6 +1,81 @@
-import * as Location from 'expo-location';
-
 import type { PlaceResult, UserLocation, WeatherInfo } from '@/types/places';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Location from 'expo-location';
+import { Platform } from 'react-native';
+
+const LOCATION_CACHE_KEY = 'urbanlens.lastLocation.v1';
+
+const FALLBACK_LOCATION: UserLocation = {
+  latitude: 12.8465,
+  longitude: 80.2263,
+  label: 'Navalur',
+  address: 'Navalur, Chennai',
+};
+
+function withTimeout<T>(promise: Promise<T>, ms: number, label = 'Timed out'): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(label)), ms);
+    promise.then(
+      (value) => {
+        clearTimeout(timer);
+        resolve(value);
+      },
+      (error) => {
+        clearTimeout(timer);
+        reject(error);
+      },
+    );
+  });
+}
+
+export async function readCachedUserLocation(): Promise<UserLocation | null> {
+  try {
+    const raw = await AsyncStorage.getItem(LOCATION_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as UserLocation;
+    if (typeof parsed.latitude === 'number' && typeof parsed.longitude === 'number') {
+      return {
+        latitude: parsed.latitude,
+        longitude: parsed.longitude,
+        label: parsed.label || 'Current location',
+        address: parsed.address || parsed.label || 'Current location',
+      };
+    }
+  } catch {
+    // ignore bad cache
+  }
+  return null;
+}
+
+async function writeCachedUserLocation(location: UserLocation) {
+  try {
+    await AsyncStorage.setItem(LOCATION_CACHE_KEY, JSON.stringify(location));
+  } catch {
+    // ignore
+  }
+}
+
+function getBrowserCoords(timeoutMs: number): Promise<{ latitude: number; longitude: number }> {
+  return new Promise((resolve, reject) => {
+    if (typeof navigator === 'undefined' || !navigator.geolocation) {
+      reject(new Error('Geolocation unavailable'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) =>
+        resolve({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        }),
+      (err) => reject(err),
+      {
+        enableHighAccuracy: false,
+        timeout: timeoutMs,
+        maximumAge: 5 * 60 * 1000,
+      },
+    );
+  });
+}
 
 const NOMINATIM_HEADERS = {
   Accept: 'application/json',
@@ -42,58 +117,72 @@ export async function requestLocationPermission() {
   return asked.granted;
 }
 
-import { Platform } from 'react-native';
+async function getCoordsFast(): Promise<{ latitude: number; longitude: number }> {
+  if (Platform.OS === 'web') {
+    return getBrowserCoords(8000);
+  }
 
-export async function getCurrentUserLocation(): Promise<UserLocation> {
   const granted = await requestLocationPermission();
   if (!granted) {
     throw new Error('Location permission is required to detect weather and your source place.');
   }
 
-  let position;
   try {
-    if (Platform.OS === 'web') {
-      // Use getLastKnownPositionAsync on web to avoid the 6000ms timeout bug
-      position = await Location.getLastKnownPositionAsync();
-      if (!position) {
-        position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Low,
-        });
-      }
-    } else {
-      position = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+    const last = await Location.getLastKnownPositionAsync();
+    if (last?.coords) {
+      return { latitude: last.coords.latitude, longitude: last.coords.longitude };
     }
+  } catch {
+    // continue to a fresh read
+  }
+
+  const position = await withTimeout(
+    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Low }),
+    10000,
+    'GPS timed out',
+  );
+  return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+}
+
+export async function getCurrentUserLocation(): Promise<UserLocation> {
+  const cached = await readCachedUserLocation();
+
+  let latitude: number;
+  let longitude: number;
+  try {
+    const coords = await getCoordsFast();
+    latitude = coords.latitude;
+    longitude = coords.longitude;
   } catch (error) {
     console.log('Location error:', error);
-    // Provide a default fallback if location completely fails
-    return {
-      latitude: 12.8465,
-      longitude: 80.2263,
-      label: 'Navalur',
-      address: 'Navalur, Chennai',
-    };
+    if (cached) return cached;
+    return FALLBACK_LOCATION;
   }
 
-  if (!position) {
-    return {
-      latitude: 12.8465,
-      longitude: 80.2263,
-      label: 'Navalur',
-      address: 'Navalur, Chennai',
-    };
-  }
-
-  const { latitude, longitude } = position.coords;
-  const reverse = await reverseGeocode(latitude, longitude);
-
-  return {
+  const location: UserLocation = {
     latitude,
     longitude,
-    label: reverse.placeName,
-    address: reverse.address,
+    label: cached?.label || 'Current location',
+    address: cached?.address || 'Current location',
   };
+  void writeCachedUserLocation(location);
+  return location;
+}
+
+/** Resolve suburb/city name after coords are already on screen. */
+export async function refineUserLocationLabel(location: UserLocation): Promise<UserLocation> {
+  try {
+    const reverse = await withTimeout(reverseGeocode(location.latitude, location.longitude), 2500, 'Geocode timed out');
+    const named: UserLocation = {
+      ...location,
+      label: reverse.placeName,
+      address: reverse.address,
+    };
+    void writeCachedUserLocation(named);
+    return named;
+  } catch {
+    return location;
+  }
 }
 
 export async function reverseGeocode(latitude: number, longitude: number): Promise<PlaceResult> {
@@ -468,8 +557,9 @@ export async function searchNearbyPlaces(
 export async function fetchWeather(latitude: number, longitude: number): Promise<WeatherInfo> {
   const forecastUrl =
     `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
-    `&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m` +
-    `&hourly=precipitation_probability,uv_index&forecast_days=1&wind_speed_unit=kmh&timezone=auto`;
+    `&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m,apparent_temperature,surface_pressure` +
+    `&hourly=temperature_2m,weather_code,precipitation_probability,uv_index` +
+    `&daily=sunrise,sunset&forecast_days=1&wind_speed_unit=kmh&timezone=auto`;
   const aqiUrl =
     `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${latitude}&longitude=${longitude}` +
     `&current=us_aqi`;
@@ -487,26 +577,69 @@ export async function fetchWeather(latitude: number, longitude: number): Promise
       relative_humidity_2m: number;
       weather_code: number;
       wind_speed_10m: number;
+      apparent_temperature?: number;
+      surface_pressure?: number;
     };
     hourly?: {
       time: string[];
+      temperature_2m?: (number | null)[];
+      weather_code?: (number | null)[];
       precipitation_probability?: (number | null)[];
       uv_index?: (number | null)[];
     };
+    daily?: {
+      sunrise?: string[];
+      sunset?: string[];
+    };
   };
+
+  const now = new Date();
+  const pad = (n: number) => String(n).padStart(2, '0');
+  const localHourKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}`;
+  let idx = 0;
+  if (data.hourly?.time?.length) {
+    const found = data.hourly.time.findIndex((t) => t.startsWith(localHourKey));
+    idx = found >= 0 ? found : Math.min(now.getHours(), data.hourly.time.length - 1);
+  }
 
   let rainProbability: number | undefined;
   let uvIndex: number | undefined;
   if (data.hourly?.time?.length) {
-    const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const localHourKey = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}`;
-    let idx = data.hourly.time.findIndex((t) => t.startsWith(localHourKey));
-    if (idx < 0) idx = Math.min(now.getHours(), data.hourly.time.length - 1);
     const rain = data.hourly.precipitation_probability?.[idx];
     const uv = data.hourly.uv_index?.[idx];
     if (typeof rain === 'number') rainProbability = Math.round(rain);
     if (typeof uv === 'number') uvIndex = Math.round(uv);
+  }
+
+  const hourly: WeatherInfo['hourly'] = [];
+  if (data.hourly?.time?.length && data.hourly.temperature_2m?.length) {
+    for (let i = idx; i < Math.min(idx + 12, data.hourly.time.length); i++) {
+      const temp = data.hourly.temperature_2m[i];
+      const code = data.hourly.weather_code?.[i];
+      if (typeof temp !== 'number') continue;
+      const timeStr = data.hourly.time[i];
+      const hour = Number(timeStr.slice(11, 13));
+      const label =
+        i === idx ? 'NOW' : `${((hour + 11) % 12) + 1} ${hour >= 12 ? 'PM' : 'AM'}`;
+      const wCode = typeof code === 'number' ? code : data.current.weather_code;
+      hourly.push({
+        label,
+        temperatureC: Math.round(temp),
+        code: wCode,
+        description: weatherDescription(wCode),
+      });
+    }
+  }
+
+  function formatSun(iso?: string) {
+    if (!iso) return undefined;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return undefined;
+    const h = d.getHours();
+    const m = d.getMinutes();
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const hh = ((h + 11) % 12) + 1;
+    return `${hh}:${String(m).padStart(2, '0')} ${ampm}`;
   }
 
   let aqi: number | undefined;
@@ -530,5 +663,16 @@ export async function fetchWeather(latitude: number, longitude: number): Promise
     aqi,
     uvIndex,
     rainProbability,
+    feelsLikeC:
+      typeof data.current.apparent_temperature === 'number'
+        ? Math.round(data.current.apparent_temperature)
+        : undefined,
+    pressureHpa:
+      typeof data.current.surface_pressure === 'number'
+        ? Math.round(data.current.surface_pressure)
+        : undefined,
+    sunrise: formatSun(data.daily?.sunrise?.[0]),
+    sunset: formatSun(data.daily?.sunset?.[0]),
+    hourly: hourly.length ? hourly : undefined,
   };
 }

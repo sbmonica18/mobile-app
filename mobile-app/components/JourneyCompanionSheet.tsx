@@ -32,13 +32,15 @@ type Props = {
   /** outbound | returning — changes End / complete copy */
   tourLeg?: 'outbound' | 'returning';
   onEndJourney: () => void;
+  /** Phase 11 live intelligence lines (optional) */
+  intelligenceLines?: string[];
 };
 
 const AI_INSIGHTS = [
-  'You are currently ahead of schedule by 4 minutes.',
-  'Traffic is light ahead. Maintaining current route.',
-  'Parking availability is high at the destination.',
-  'Scenic viewpoints available along this corridor.',
+  'Monitoring available weather and time-based mobility signals.',
+  'Open UrbanLens Now anytime for a deeper area briefing.',
+  'Estimated crowd/traffic windows are labeled — not live sensors.',
+  'Finish outdoor stops earlier if rain probability rises.',
 ];
 
 export function JourneyCompanionSheet({
@@ -50,6 +52,7 @@ export function JourneyCompanionSheet({
   progressPct,
   tourLeg = 'outbound',
   onEndJourney,
+  intelligenceLines,
 }: Props) {
   const insets = useSafeAreaInsets();
   const translateY = useSharedValue(COLLAPSED_OFFSET);
@@ -57,6 +60,8 @@ export function JourneyCompanionSheet({
   const [insightIdx, setInsightIdx] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const aiPulse = useSharedValue(1);
+  const lines =
+    intelligenceLines && intelligenceLines.length > 0 ? intelligenceLines : AI_INSIGHTS;
 
   useEffect(() => {
     if (isNavigating) {
@@ -76,10 +81,10 @@ export function JourneyCompanionSheet({
   useEffect(() => {
     if (!isNavigating) return;
     const interval = setInterval(() => {
-      setInsightIdx((prev) => (prev + 1) % AI_INSIGHTS.length);
+      setInsightIdx((prev) => (prev + 1) % lines.length);
     }, 15000);
     return () => clearInterval(interval);
-  }, [isNavigating]);
+  }, [isNavigating, lines.length]);
 
   const expandSheet = () => {
     translateY.value = withSpring(0, { damping: 14, stiffness: 120 });
@@ -186,7 +191,7 @@ export function JourneyCompanionSheet({
               <Ionicons name="sparkles" size={16} color={CLOUD.aiAccent} />
               <Text style={styles.aiTitle}>AI Insights</Text>
             </View>
-            <Text style={styles.aiText}>{AI_INSIGHTS[insightIdx]}</Text>
+            <Text style={styles.aiText}>{lines[insightIdx % lines.length]}</Text>
           </Animated.View>
 
           <Text style={styles.sectionTitle}>Live Environment</Text>

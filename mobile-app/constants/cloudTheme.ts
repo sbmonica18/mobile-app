@@ -5,6 +5,8 @@
  * Every value here follows the PRD spacing / color / radius / shadow tables.
  */
 
+import { Platform } from 'react-native';
+
 /* ── Colors ────────────────────────────────────────────────── */
 const COLORS = {
   bg: '#F7F9FC',          // Cloud White — entire app background
@@ -110,4 +112,28 @@ export const CLOUD = {
   radius: RADIUS.card,  // default radius for cards
   shadow: SHADOWS.card, // default shadow for cards
 } as const;
+
+/** Horizontal page padding across phone brands (320–430+) and small tablets. */
+export function layoutPad(width: number) {
+  if (width < 360) return 14;
+  if (width < 400) return 16;
+  if (width > 720) return 28;
+  return 20;
+}
+
+/** Bottom inset so tab labels clear iPhone home indicator and Android nav / gesture bars. */
+export function tabBarBottomPad(bottomInset: number) {
+  const minPad = Platform.OS === 'web' ? 12 : 16;
+  return Math.max(bottomInset, minPad);
+}
+
+/** Tab bar height that clears iPhone home indicator and Android nav / gesture bars. */
+export function tabBarMetrics(bottomInset: number) {
+  const paddingBottom = tabBarBottomPad(bottomInset);
+  return {
+    height: 56 + paddingBottom,
+    paddingTop: 8,
+    paddingBottom,
+  };
+}
 

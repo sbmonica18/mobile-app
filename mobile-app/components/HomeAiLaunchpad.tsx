@@ -1,8 +1,9 @@
 import { CLOUD } from '@/constants/cloudTheme';
+import { useThemeStore } from '@/store/themeStore';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useEffect, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, {
   Easing,
   Extrapolation,
@@ -130,6 +131,9 @@ function MiniOrb() {
 export function HomeAiLaunchpad({ onExploreAi }: Props) {
   const reduceMotion = !!useReducedMotion();
   const sweep = useSharedValue(0);
+  const colors = useThemeStore((s) => s.colors);
+  const { width } = useWindowDimensions();
+  const compact = width < 380;
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -152,7 +156,16 @@ export function HomeAiLaunchpad({ onExploreAi }: Props) {
   }));
 
   return (
-    <View style={styles.wrap}>
+    <View
+      style={[
+        styles.wrap,
+        {
+          backgroundColor: colors.card,
+          borderColor: colors.lightBlue,
+          padding: compact ? 16 : 22,
+        },
+      ]}
+    >
       <LinearGradient
         colors={['rgba(37,99,235,0.08)', 'rgba(124,58,237,0.07)', 'transparent']}
         style={StyleSheet.absoluteFill}
@@ -163,9 +176,11 @@ export function HomeAiLaunchpad({ onExploreAi }: Props) {
       <View style={styles.topRow}>
         <MiniOrb />
         <View style={styles.copy}>
-          <Text style={styles.kicker}>UrbanLens AI</Text>
-          <Text style={styles.headline}>Let AI plan your perfect trip</Text>
-          <Text style={styles.subline}>
+          <Text style={[styles.kicker, { color: colors.aiAccent }]}>UrbanLens AI</Text>
+          <Text
+            style={[styles.headline, { color: colors.ink, fontSize: compact ? 20 : 24, lineHeight: compact ? 26 : 30 }]}
+          >Let AI plan your perfect trip</Text>
+          <Text style={[styles.subline, { color: colors.body }]}>
             AI-powered recommendations, tailored to right now
           </Text>
         </View>
@@ -286,7 +301,8 @@ const styles = StyleSheet.create({
     backgroundColor: CLOUD.primary,
   },
   cta: {
-    height: CLOUD.buttons.height,
+    height: 52,
+    minHeight: 48,
     borderRadius: CLOUD.radii.button,
     flexDirection: 'row',
     alignItems: 'center',

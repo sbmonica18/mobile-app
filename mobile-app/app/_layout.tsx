@@ -9,9 +9,11 @@ import { StatusBar } from 'expo-status-bar';
 import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { CLOUD } from '@/constants/cloudTheme';
 import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
 
 // Never hold the native splash while fonts download over tunnel.
 void SplashScreen.preventAutoHideAsync()
@@ -20,6 +22,8 @@ void SplashScreen.preventAutoHideAsync()
 
 export default function RootLayout() {
   const hydrate = useAuthStore((s) => s.hydrate);
+  const hydrateTheme = useThemeStore((s) => s.hydrate);
+  const colors = useThemeStore((s) => s.colors);
   const [queryClient] = useState(
     () =>
       new QueryClient({
@@ -41,20 +45,23 @@ export default function RootLayout() {
 
   useEffect(() => {
     void hydrate().catch(() => undefined);
-  }, [hydrate]);
+    void hydrateTheme().catch(() => undefined);
+  }, [hydrate, hydrateTheme]);
 
   return (
-    <GestureHandlerRootView style={styles.root}>
-      <QueryClientProvider client={queryClient}>
-        <StatusBar style="dark" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: CLOUD.bg },
-            animation: 'fade',
-          }}
-        />
-      </QueryClientProvider>
+    <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.bg }]}>
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <StatusBar style={colors.statusBar} />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.bg },
+              animation: 'fade',
+            }}
+          />
+        </QueryClientProvider>
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

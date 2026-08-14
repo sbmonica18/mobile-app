@@ -14,7 +14,7 @@ Build MVP first. Each phase ends with a working, testable app.
 | 8 | Journey companion | **Done (MVP)** |
 | 9 | Smart route story | **Done (lite)** |
 | 10 | AI Journey Story + Travel Vault | **Done (MVP)** |
-| 11 | Notifications | Planned |
+| 11 | UrbanLens Now — continuous location intelligence | **Done (MVP)** |
 | 12 | User profile | Partial / Planned |
 | 13 | Admin dashboard (web) | Planned |
 | 14 | Testing | Planned |
@@ -22,7 +22,7 @@ Build MVP first. Each phase ends with a working, testable app.
 
 ## MVP cutoff
 
-Phases **1–10** (through AI Journey Story / Travel Vault) form a solid final-year MVP. Full profile polish (12) is partial.
+Phases **1–11** (through UrbanLens Now continuous intelligence) form the solid final-year MVP. Full profile polish (12) is partial.
 
 ## Screen ownership
 
@@ -40,7 +40,8 @@ Phases **1–10** (through AI Journey Story / Travel Vault) form a solid final-y
 | (ai-flow)/decision-canvas | Side-by-side compare |
 | (ai-flow)/route-navigation | Live route navigation → story |
 | journey-story | AI Journey Story (cinematic post-trip) |
-| travel-vault | Saved journey stories archive |
+| travel-vault | Saved journey stories archive + intelligence memories |
+| urbanlens-now | UrbanLens Now live intelligence feed |
 | Saved / Profile | Saved places / account + vault entry |
 
 For full page-by-page actions and outputs, see [PRD.md](PRD.md).

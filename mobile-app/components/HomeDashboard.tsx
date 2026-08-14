@@ -1,4 +1,5 @@
 import { CLOUD } from '@/constants/cloudTheme';
+import { useThemeStore } from '@/store/themeStore';
 import {
   getClimateScene,
   resolveCondition,
@@ -109,13 +110,16 @@ function AmbientBlob({
 }
 
 export function HomeShell({ children }: { children: ReactNode }) {
+  const colors = useThemeStore((s) => s.colors);
   return (
-    <View style={styles.shell}>
-      <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        <AmbientBlob size={180} color={CLOUD.primary} left="-12%" top="8%" duration={18000} />
-        <AmbientBlob size={140} color={CLOUD.aiAccent} left="70%" top="32%" duration={22000} />
-        <AmbientBlob size={120} color={CLOUD.accent} left="20%" top="68%" duration={20000} />
-      </View>
+    <View style={[styles.shell, { backgroundColor: colors.bg }]}>
+      {colors.ambient ? (
+        <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+          <AmbientBlob size={180} color={colors.primary} left="-12%" top="8%" duration={18000} />
+          <AmbientBlob size={140} color={colors.aiAccent} left="70%" top="32%" duration={22000} />
+          <AmbientBlob size={120} color={colors.accent} left="20%" top="68%" duration={20000} />
+        </View>
+      ) : null}
       {children}
     </View>
   );
@@ -139,6 +143,7 @@ export function HomeHeader({
   const logoFloat = useRef(new Animated.Value(0)).current;
   const shimmer = useRef(new Animated.Value(0)).current;
   const locPulse = useRef(new Animated.Value(0)).current;
+  const colors = useThemeStore((s) => s.colors);
 
   useEffect(() => {
     const floatLoop = Animated.loop(
@@ -213,9 +218,9 @@ export function HomeHeader({
             />
           </Animated.View>
           <View style={styles.brandTextWrap}>
-            <Text style={styles.brandTextUrban}>
+            <Text style={[styles.brandTextUrban, { color: colors.ink }]}>
               Urban
-              <Text style={styles.brandTextLens}>Lens</Text>
+              <Text style={[styles.brandTextLens, { color: colors.primary }]}>Lens</Text>
             </Text>
             <Animated.View
               pointerEvents="none"
@@ -264,11 +269,15 @@ export function HomeHeader({
                 />
                 <View style={styles.locPulseDot} />
               </View>
-              <Text style={styles.headerLocEyebrow}>Currently Exploring</Text>
+              <Ionicons name="location-outline" size={13} color={colors.primary} />
+              <Text
+                style={[styles.headerLocText, { color: colors.body }]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {locationLabel}
+              </Text>
             </View>
-            <Text style={styles.headerLocText} numberOfLines={1}>
-              {locationLabel}
-            </Text>
           </View>
         ) : null}
       </View>
@@ -281,7 +290,7 @@ export function HomeHeader({
         accessibilityLabel={`Profile, ${name}`}
       >
         <Animated.View style={[styles.avatar, { transform: [{ scale: scaleAnim }] }]}>
-          <User size={20} color={CLOUD.primary} />
+          <User size={20} color={colors.primary} />
           <View style={styles.avatarDot} />
         </Animated.View>
       </Pressable>
@@ -1004,11 +1013,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  headerLeft: { flex: 1, paddingRight: 12 },
+  headerLeft: { flex: 1, minWidth: 0, paddingRight: 12 },
   brandRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
+    minWidth: 0,
   },
   brandLogo: {
     alignItems: 'center',
@@ -1027,6 +1037,8 @@ const styles = StyleSheet.create({
   brandTextWrap: {
     overflow: 'hidden',
     position: 'relative',
+    flexShrink: 1,
+    minWidth: 0,
   },
   brandTextUrban: {
     fontFamily: CLOUD.fonts.heading,
@@ -1047,12 +1059,13 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.65)',
   },
   headerLocBlock: {
-    marginTop: 10,
+    marginTop: 4,
   },
   headerLocLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
+    minWidth: 0,
   },
   locPulseWrap: {
     width: 10,
@@ -1086,11 +1099,12 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   headerLocText: {
-    fontFamily: CLOUD.fonts.heading,
-    color: CLOUD.ink,
-    fontSize: 16,
-    fontWeight: '700',
-    marginTop: 2,
+    fontFamily: CLOUD.fonts.body,
+    color: CLOUD.body,
+    fontSize: 13,
+    fontWeight: '600',
+    flexShrink: 1,
+    minWidth: 0,
   },
   avatar: {
     width: 46,

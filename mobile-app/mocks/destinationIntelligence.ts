@@ -7,10 +7,11 @@
  * duplicate images within a destination, duplicate heroes/covers, and
  * missing essential service categories.
  */
-import { mockDestinations } from '@/mocks/destinations';
 import { estimateTravel } from '@/utils/travelEstimate';
-import { ensureAttractionCoords, ensureServiceCoords } from '@/services/destinationNearbyPlaces';
+import { mockDestinations } from '@/mocks/destinations';
 import { extraIntelligence } from './catalogueExtra';
+import { enrichCatalogueAttractions, ensureServiceCoords } from '@/services/destinationNearbyPlaces';
+import { useDashboardStore } from '@/store/dashboardStore';
 export interface DestinationIntelligence {
   id: string;
   name: string;
@@ -92,17 +93,18 @@ export function getDestinationIntelligence(
 
   // Prefer live estimate from user GPS over hardcoded Bangalore-centric mocks
   const catalog = mockDestinations.find((d) => d.id === base.id);
-  if (origin?.latitude && origin?.longitude && catalog?.coordinates) {
-    const est = estimateTravel(origin, catalog.coordinates);
+  const liveOrigin =
+    origin?.latitude && origin?.longitude
+      ? origin
+      : useDashboardStore.getState().source;
+  if (liveOrigin?.latitude && liveOrigin?.longitude && catalog?.coordinates) {
+    const est = estimateTravel(liveOrigin, catalog.coordinates);
     base.distanceKm = est.distanceKm;
     base.travelTimeMin = est.travelTimeMin;
-  } else if (catalog?.coordinates && !origin) {
-    // No GPS yet — leave catalogue defaults, but never invent "1h" for far places
   }
 
-  // Attach / retain lat-lng on every attraction & service (fallback near destination center)
   if (catalog?.coordinates) {
-    base.attractions = ensureAttractionCoords(base.attractions, catalog.coordinates);
+    base.attractions = enrichCatalogueAttractions(base.id, base.attractions, catalog.coordinates);
     base.services = ensureServiceCoords(base.services, catalog.coordinates);
   }
 

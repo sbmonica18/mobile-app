@@ -31,7 +31,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 
 function thumbUrl(url: string) {
@@ -183,7 +183,6 @@ function ShowcaseCard({
 
 export default function DestinationShowcaseScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const resetFilters = useAiFlowStore((s) => s.resetFilters);
 
@@ -261,7 +260,7 @@ export default function DestinationShowcaseScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.topBar}>
         <Pressable
           onPress={goBack}
@@ -281,10 +280,7 @@ export default function DestinationShowcaseScreen() {
         renderItem={renderItem}
         numColumns={columns}
         ListHeaderComponent={listHeader}
-        contentContainerStyle={[
-          styles.listContent,
-          { paddingBottom: 108 + Math.max(insets.bottom, 12) },
-        ]}
+        contentContainerStyle={styles.listContent}
         columnWrapperStyle={styles.row}
         showsVerticalScrollIndicator={false}
         onViewableItemsChanged={onViewableItemsChanged}
@@ -293,12 +289,10 @@ export default function DestinationShowcaseScreen() {
         maxToRenderPerBatch={columns * 4}
         windowSize={7}
         removeClippedSubviews
+        style={styles.list}
       />
 
-      <View
-        pointerEvents="box-none"
-        style={[styles.ctaDock, { paddingBottom: Math.max(insets.bottom, 14) }]}
-      >
+      <View style={styles.ctaDock}>
         <GlowPulseButton onPress={continueToIntent}>
           <Text style={styles.ctaText}>Let{"'"}s Plan Your Trip →</Text>
         </GlowPulseButton>
@@ -347,8 +341,12 @@ const styles = StyleSheet.create({
     color: CLOUD.muted,
     fontWeight: '500',
   },
+  list: {
+    flex: 1,
+  },
   listContent: {
     paddingHorizontal: 16,
+    paddingBottom: 16,
   },
   row: {
     gap: 12,
@@ -378,14 +376,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
   },
   ctaDock: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 0,
-    alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
     paddingTop: 12,
-    backgroundColor: 'transparent',
+    paddingBottom: 12,
+    backgroundColor: CLOUD.bg,
+    borderTopWidth: 1,
+    borderTopColor: CLOUD.border,
+    alignItems: 'center',
   },
   ctaOuter: {
     width: '100%',
